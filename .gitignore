@@ -1,4 +1,5 @@
-/ACM
-/cora
-/DBLP
-/IMDB
+ACM/
+cora/
+DBLP/
+IMDB/
+__pycache__/
