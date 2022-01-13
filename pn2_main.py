@@ -21,6 +21,7 @@ import dgl
 from scipy import sparse
 from dgl.nn.pytorch import GraphConv as GraphConv
 
+import copy
 from dataCenter import *
 from utils import *
 from models import *
@@ -28,6 +29,7 @@ import plotter as plotter
 import graph_statistics as GS
 import pn2_helper as helper
 import classification
+import statistics
 
 
 #%%  arg setup
@@ -41,7 +43,7 @@ parser = argparse.ArgumentParser(description='Inductive KDD')
 
 parser.add_argument('-e', dest="epoch_number", default=300, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='ACM')
+parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whule graph")
@@ -207,6 +209,7 @@ print("Result on Link Prediction Task - TRAIN")
 
 auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(train_edges, train_edges_false, sparse.csr_matrix(re_adj),
                                                         sparse.csr_matrix(org_adj))
+
 print("Train_acc: {:03f}".format(val_acc), " | Train_auc: {:03f}".format(auc), " | Train_AP: {:03f}".format(val_ap))
 print("Confusion matrix: \n", conf_mtrx)
 
@@ -216,8 +219,6 @@ print("Confusion matrix: \n", conf_mtrx)
 
 print("=====================================")
 print("Result on Link Prediction Task - TEST")
-
-
 
 # adj_list_test = sparse.csr_matrix(re_adj.detach().numpy())[testId]
 # adj_list_test_re = adj_list_test[:, testId]
@@ -231,6 +232,49 @@ print("Result on Link Prediction Task - TEST")
 auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
 print("Test_acc: {:03f}".format(val_acc), " | Test_auc: {:03f}".format(auc), " | Test_AP: {:03f}".format(val_ap))
 print("Confusion matrix: \n", conf_mtrx)
+
+
+
+auc_list = []
+val_acc_list = []
+val_ap_list = []
+
+count = 0
+total_ones = 0
+for idd in testId:
+    non_zero_list = org_adj[idd].nonzero()
+    for neighbour_id in non_zero_list[0]:
+        total_ones += 1
+        org_adj_copy = copy.deepcopy(org_adj)
+        org_adj_copy[idd,neighbour_id] = 0
+        org_adj_copy = sparse.csr_matrix(org_adj_copy)
+        graph_dgl = dgl.from_scipy(org_adj_copy)
+        graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
+        std_z, m_z, z, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
+        re_adj = torch.sigmoid(re_adj).detach().numpy()
+        auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
+        auc_list.append(auc)
+        val_acc_list.append(val_acc)
+        val_ap_list.append(val_ap)
+        auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
+        print("Test_acc: {:03f}".format(val_acc), " | Test_auc: {:03f}".format(auc), " | Test_AP: {:03f}".format(val_ap))
+        print("Confusion matrix: \n", conf_mtrx)
+        
+        if re_adj[idd][neighbour_id] >= 0.5:
+            count += 1
+            print("count is: ", count)
+            
+            
+auc_mean = statistics.mean(auc_list)
+val_acc_mean = statistics.mean(val_acc_list)
+val_ap_mean = statistics.mean(val_ap_list)
+print("val_acc_mean: {:03f}".format(val_acc_mean), " | auc_mean: {:03f}".format(auc_mean), " | val_ap_mean: {:03f}".format(val_ap_mean))
+
+
+hitting_ratio = count / total_ones
+print("Hitting ratio is: ", hitting_ratio)
+
+
 
 
 
