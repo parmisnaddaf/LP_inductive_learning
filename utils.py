@@ -932,3 +932,70 @@ def mask_test_edges(adj, testId, trainId):
         
         
     return test_edges_false, test_edges, train_edges_false, train_edges
+
+
+
+
+def kl_mvn(m0, S0, m1, S1):
+    """
+    Kullback-Liebler divergence from Gaussian pm,pv to Gaussian qm,qv.
+    Also computes KL divergence from a single Gaussian pm,pv to a set
+    of Gaussians qm,qv.
+    
+
+    From wikipedia
+    KL( (m0, S0) || (m1, S1))
+         = .5 * ( tr(S1^{-1} S0) + log |S1|/|S0| + 
+                  (m1 - m0)^T S1^{-1} (m1 - m0) - N )
+    """
+    #convert to numpy
+    m0 = m0.detach().numpy()    
+    m1 = m1.detach().numpy() 
+    S0 = S0.detach().numpy()    
+    S1 = S1.detach().numpy()  
+    
+    S1_og = S1
+    S0_og = S0
+    S1 = S1 @ S1.T
+    
+    S0 = S0 @ S0.T
+    # store inv diag covariance of S1 and diff between means
+    N = m0.shape[0]
+    iS1 = np.linalg.inv(S1)
+    diff = m1 - m0
+
+    # kl is made of three terms
+    tr_term   = np.trace(iS1 @ S0)
+    det_term  = np.log(np.linalg.det(S1)/np.linalg.det(S0)) #np.sum(np.log(S1)) - np.sum(np.log(S0))
+    quad_term = diff.T @ np.linalg.inv(S1) @ diff #np.sum( (diff*diff) * iS1, axis=1)
+    #print(tr_term,det_term,quad_term)
+    return .5 * (tr_term + det_term + quad_term - N) 
+
+
+
+
+
+
+def kl_divergence(mu1, mu2, sigma_1, sigma_2):
+
+    #convert to numpy
+    mu1 = mu1.detach().numpy()    
+    mu2 = mu2.detach().numpy() 
+    sigma_1 = sigma_1.detach().numpy()    
+    sigma_2 = sigma_2.detach().numpy()  
+
+
+    sigma_1 = sigma_1 @ sigma_1.T
+    sigma_diag_1 = np.eye(sigma_1.shape[0]) * sigma_1
+    
+    sigma_2 = sigma_2 @ sigma_2.T
+    sigma_diag_2 = np.eye(sigma_2.shape[0]) * sigma_2
+   
+
+    sigma_diag_2_inv = np.linalg.inv(sigma_diag_2)
+
+    kl = 0.5 * (np.log(np.linalg.det(sigma_diag_1) / np.linalg.det(sigma_diag_2))
+                - mu1.shape[0] + np.trace(np.matmul(sigma_diag_2_inv, sigma_diag_1))
+                + np.matmul(np.matmul(np.transpose(mu2 - mu1), sigma_diag_2_inv), (mu2 - mu1))
+                )
+    return kl

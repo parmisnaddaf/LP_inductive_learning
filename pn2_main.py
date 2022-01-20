@@ -41,7 +41,7 @@ import statistics
 parser = argparse.ArgumentParser(description='Inductive KDD')
 
 
-parser.add_argument('-e', dest="epoch_number", default=300, help="Number of Epochs")
+parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
@@ -160,7 +160,7 @@ adj_list = adj_list.todense()
 adj_list = sparse.csr_matrix(adj_list)
 graph_dgl = dgl.from_scipy(adj_list)
 graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
-std_z, m_z, z, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
+std_z_recog, m_z_recog, z_recog, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
 re_adj = torch.sigmoid(re_adj).detach().numpy()
 
 
@@ -253,7 +253,10 @@ for idd in testId:
         org_adj_copy = sparse.csr_matrix(org_adj_copy)
         graph_dgl = dgl.from_scipy(org_adj_copy)
         graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
-        std_z, m_z, z, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
+        std_z_prior, m_z_prior ,z_prior, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
+#        kl_output = kl_mvn(m_z_recog, std_z_recog, m_z_prior, std_z_prior)
+        # kl_output = torch.distributions.kl.kl_divergence(z_recog.detach().numpy(), z_prior.detach().numpy())
+        kl_divergence(m_z_recog,m_z_prior, std_z_recog,std_z_prior)
         re_adj = torch.sigmoid(re_adj).detach().numpy()
         auc, val_acc, val_ap, conf_mtrx , precision, recall= roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
         auc_list.append(auc)
