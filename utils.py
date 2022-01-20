@@ -6,7 +6,7 @@ import math
 
 from sklearn.utils import shuffle
 from sklearn.metrics import f1_score
-from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix,average_precision_score
+from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix,average_precision_score, recall_score, precision_score
 
 import torch.nn as nn
 import scipy.sparse as sp
@@ -381,7 +381,6 @@ def make_test_train_gpu(adj, feat, split = []):
     
     
     # create feature matrix
-    feat_train = np.zeros((len(train_nodes),  feat.shape[1]))
     feat_test = np.zeros((len(test_nodes),  feat.shape[1]))
     feat_val = np.zeros((len(train_nodes), feat.shape[1]))
     
@@ -795,12 +794,15 @@ def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agj
     pred[pred < .5] = 0
     pred = pred.astype(int)
     # pred = [1 if x>.5 else 0 for x in prediction]
-
+    
+    
+    precision = precision_score(y_pred= pred, y_true= true_label)
+    recall = recall_score(y_pred= pred, y_true= true_label)
     auc = roc_auc_score(y_score= prediction, y_true= true_label)
     acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
     ap= average_precision_score(y_score= prediction, y_true= true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
-    return auc , acc,ap, cof_mtx
+    return auc , acc,ap, cof_mtx, precision, recall
 
 
 

@@ -1,0 +1,21 @@
+
+Epoch: 297 | Loss: 0.141244 | Reconstruction_loss: 0.093003 | z_kl_loss: 0.048240 | Accuracy: 0.967190
+Epoch: 298 | Loss: 0.133409 | Reconstruction_loss: 0.085097 | z_kl_loss: 0.048311 | Accuracy: 0.964931
+Epoch: 299 | Loss: 0.137977 | Reconstruction_loss: 0.089510 | z_kl_loss: 0.048467 | Accuracy: 0.959273
+Epoch: 300 | Loss: 0.135440 | Reconstruction_loss: 0.086928 | z_kl_loss: 0.048512 | Accuracy: 0.958911
+/local-scratch/parmis/inductive_learning/LP_inductive_learning/pn2_main.py:194: SparseEfficiencyWarning: Comparing a sparse matrix with 0 using == is inefficient, try using != instead.
+  test_edges_false, test_edges, train_edges_false, train_edges  = mask_test_edges(adj_list, testId, trainId)
+=====================================
+Result on Link Prediction Task - TRAIN
+Train_acc: 0.872135  | Train_auc: 0.956699  | Train_AP: 0.959744  | Train_precision: 0.958517  | Train_recall: 0.777937
+Confusion matrix:
+ [[2698   94]
+ [ 620 2172]]
+=====================================
+Result on Link Prediction Task - TEST
+Test_acc: 0.885945  | Test_auc: 0.969144  | Test_AP: 0.966350  | Test_precision: 0.969188  | Test_recall: 0.797235
+Confusion matrix:
+ [[423  11]
+ [ 88 346]]
+ val_acc_mean: 0.875204  | auc_mean: 0.966570  | val_ap_mean: 0.962864  | precision_mean: 0.968222  | recall_mean: 0.962864
+Hitting ratio is:  0.9601843002341955

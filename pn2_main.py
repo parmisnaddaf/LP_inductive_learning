@@ -207,39 +207,42 @@ print("Result on Link Prediction Task - TRAIN")
 
 
 
-auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(train_edges, train_edges_false, sparse.csr_matrix(re_adj),
+auc, val_acc, val_ap, conf_mtrx , precision, recall = roc_auc_estimator(train_edges, train_edges_false, sparse.csr_matrix(re_adj),
                                                         sparse.csr_matrix(org_adj))
 
-print("Train_acc: {:03f}".format(val_acc), " | Train_auc: {:03f}".format(auc), " | Train_AP: {:03f}".format(val_ap))
+print("Train_acc: {:03f}".format(val_acc), " | Train_auc: {:03f}".format(auc), " | Train_AP: {:03f}".format(val_ap)," | Train_precision: {:03f}".format(precision), " | Train_recall: {:03f}".format(recall))
 print("Confusion matrix: \n", conf_mtrx)
 
 
 
 
-
+# testing negative edges
 print("=====================================")
 print("Result on Link Prediction Task - TEST")
 
-# adj_list_test = sparse.csr_matrix(re_adj.detach().numpy())[testId]
-# adj_list_test_re = adj_list_test[:, testId]
-# adj_list_test_re = torch.from_numpy(adj_list_test_re.todense())
-
-# adj_list_test = sparse.csr_matrix(org_adj)[testId]
-# adj_list_test_org = adj_list_test[:, testId]
-
-# adj_list_test_re = adj_list_test[:, testId]
-
-auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
-print("Test_acc: {:03f}".format(val_acc), " | Test_auc: {:03f}".format(auc), " | Test_AP: {:03f}".format(val_ap))
+auc, val_acc, val_ap, conf_mtrx , precision, recall = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
+print("Test_acc: {:03f}".format(val_acc), " | Test_auc: {:03f}".format(auc), " | Test_AP: {:03f}".format(val_ap)," | Test_precision: {:03f}".format(precision), " | Test_recall: {:03f}".format(recall))
 print("Confusion matrix: \n", conf_mtrx)
 
 
+negative_count = 0
+adj_list_false_i , adj_list_false_j = sparse.find(sparse.csr_matrix(org_adj)==0)[:2]
+total_zeros = len(adj_list_false_i)
+for i in range(len(adj_list_false_i)):
+    if re_adj[adj_list_false_i[i]][adj_list_false_j[i]] < 0.5:
+        negative_count += 1
+        
+        
+    
 
-auc_list = []
-val_acc_list = []
-val_ap_list = []
 
-count = 0
+# testing masking positive edges
+auc_list = [auc]
+val_acc_list = [val_acc]
+val_ap_list = [val_ap]
+precision_list = [precision]
+recall_list = [recall]
+positive_count = 0
 total_ones = 0
 for idd in testId:
     non_zero_list = org_adj[idd].nonzero()
@@ -252,26 +255,32 @@ for idd in testId:
         graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
         std_z, m_z, z, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
         re_adj = torch.sigmoid(re_adj).detach().numpy()
-        auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
+        auc, val_acc, val_ap, conf_mtrx , precision, recall= roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
         auc_list.append(auc)
         val_acc_list.append(val_acc)
         val_ap_list.append(val_ap)
-        auc, val_acc, val_ap, conf_mtrx = roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
-        print("Test_acc: {:03f}".format(val_acc), " | Test_auc: {:03f}".format(auc), " | Test_AP: {:03f}".format(val_ap))
-        print("Confusion matrix: \n", conf_mtrx)
+        precision_list.append(precision)
+        recall_list.append(recall)
         
         if re_adj[idd][neighbour_id] >= 0.5:
-            count += 1
-            print("count is: ", count)
+            positive_count += 1
+            print("positive_count is: ", positive_count)
             
-            
+ 
+
+
 auc_mean = statistics.mean(auc_list)
 val_acc_mean = statistics.mean(val_acc_list)
 val_ap_mean = statistics.mean(val_ap_list)
-print("val_acc_mean: {:03f}".format(val_acc_mean), " | auc_mean: {:03f}".format(auc_mean), " | val_ap_mean: {:03f}".format(val_ap_mean))
+precision_mean = statistics.mean(precision_list)
+recall_mean = statistics.mean(val_ap_list)
+print("val_acc_mean: {:03f}".format(val_acc_mean), " | auc_mean: {:03f}".format(auc_mean),
+      " | val_ap_mean: {:03f}".format(val_ap_mean),
+      " | precision_mean: {:03f}".format(precision_mean),
+      " | recall_mean: {:03f}".format(recall_mean))
 
 
-hitting_ratio = count / total_ones
+hitting_ratio = (positive_count + negative_count) / (total_ones + total_zeros)
 print("Hitting ratio is: ", hitting_ratio)
 
 
