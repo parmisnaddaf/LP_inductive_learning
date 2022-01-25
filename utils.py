@@ -936,66 +936,51 @@ def mask_test_edges(adj, testId, trainId):
 
 
 
-def kl_mvn(m0, S0, m1, S1):
+def kl_pner(m0, s0, m1, s1):
     """
     Kullback-Liebler divergence from Gaussian pm,pv to Gaussian qm,qv.
     Also computes KL divergence from a single Gaussian pm,pv to a set
     of Gaussians qm,qv.
-    
+
 
     From wikipedia
     KL( (m0, S0) || (m1, S1))
-         = .5 * ( tr(S1^{-1} S0) + log |S1|/|S0| + 
+         = .5 * ( tr(S1^{-1} S0) + log |S1|/|S0| +
                   (m1 - m0)^T S1^{-1} (m1 - m0) - N )
     """
-    #convert to numpy
-    m0 = m0.detach().numpy()    
-    m1 = m1.detach().numpy() 
-    S0 = S0.detach().numpy()    
-    S1 = S1.detach().numpy()  
-    
-    S1_og = S1
-    S0_og = S0
-    S1 = S1 @ S1.T
-    
-    S0 = S0 @ S0.T
-    # store inv diag covariance of S1 and diff between means
+    m0 = m0.detach().numpy()
+    m1 = m1.detach().numpy()
+    s0 = s0.detach().numpy()
+    s1 = s1.detach().numpy()
+
+    n = s1.shape[0]
+    d = s1.shape[1]
+
     N = m0.shape[0]
-    iS1 = np.linalg.inv(S1)
+
+
     diff = m1 - m0
+    diff = diff.reshape(n * d, 1)
 
-    # kl is made of three terms
-    tr_term   = np.trace(iS1 @ S0)
-    det_term  = np.log(np.linalg.det(S1)/np.linalg.det(S0)) #np.sum(np.log(S1)) - np.sum(np.log(S0))
-    quad_term = diff.T @ np.linalg.inv(S1) @ diff #np.sum( (diff*diff) * iS1, axis=1)
-    #print(tr_term,det_term,quad_term)
-    return .5 * (tr_term + det_term + quad_term - N) 
+    # inverse s1
+    s1_inverse = 1 / s1
 
+    # since both s0 and s1 are the elements of the diagonal matrix, their multipication is gonna be the element-wise multipication of s1_inverse and s0
 
+    ss = s1_inverse * s0
 
+    # Trace is same as adding up all the elements on the diagonal
+    tr_term = np.sum(ss)
 
+    # det of a diagonal matrix is the multipication of all the elements on the diagonal
+    det_s0 = np.prod(s0)
+    det_s1 = np.prod(s1)
 
+    det_term = np.log(det_s1 / det_s0)
 
-def kl_divergence(mu1, mu2, sigma_1, sigma_2):
+    # quad_term
 
-    #convert to numpy
-    mu1 = mu1.detach().numpy()    
-    mu2 = mu2.detach().numpy() 
-    sigma_1 = sigma_1.detach().numpy()    
-    sigma_2 = sigma_2.detach().numpy()  
+    s1_inverse_quad = s1_inverse.reshape(1, n * d)
+    quad_term = (diff.T * s1_inverse_quad) @ diff
 
-
-    sigma_1 = sigma_1 @ sigma_1.T
-    sigma_diag_1 = np.eye(sigma_1.shape[0]) * sigma_1
-    
-    sigma_2 = sigma_2 @ sigma_2.T
-    sigma_diag_2 = np.eye(sigma_2.shape[0]) * sigma_2
-   
-
-    sigma_diag_2_inv = np.linalg.inv(sigma_diag_2)
-
-    kl = 0.5 * (np.log(np.linalg.det(sigma_diag_1) / np.linalg.det(sigma_diag_2))
-                - mu1.shape[0] + np.trace(np.matmul(sigma_diag_2_inv, sigma_diag_1))
-                + np.matmul(np.matmul(np.transpose(mu2 - mu1), sigma_diag_2_inv), (mu2 - mu1))
-                )
-    return kl
+    return .5 * (tr_term + det_term + quad_term - N)
