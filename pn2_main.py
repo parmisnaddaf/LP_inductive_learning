@@ -41,7 +41,7 @@ import statistics
 parser = argparse.ArgumentParser(description='Inductive KDD')
 
 
-parser.add_argument('-e', dest="epoch_number", default=10, help="Number of Epochs")
+parser.add_argument('-e', dest="epoch_number", default=200, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
@@ -53,7 +53,7 @@ parser.add_argument('-decoder_type', dest="decoder_type", default="ML_SBM",
 parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GCN",
                     help="the encoder type, Either ,mixture_of_GCNs, mixture_of_GatedGCNs , Multi_GCN or Edge_GCN ")
 parser.add_argument('-f', dest="use_feature", default=True, help="either use features or identity matrix")
-parser.add_argument('-NofRels', dest="num_of_relations", default=2,
+parser.add_argument('-NofRels', dest="num_of_relations", default=1,
                     help="Number of latent or known relation; number of deltas in SBM")
 parser.add_argument('-NofCom', dest="num_of_comunities", default=128,
                     help="Number of comunites, tor latent space dimention; len(z)")
@@ -254,8 +254,7 @@ for idd in testId:
         graph_dgl = dgl.from_scipy(org_adj_copy)
         graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
         std_z_prior, m_z_prior ,z_prior, re_adj  = inductive_pn(graph_dgl, features_kdd, train=False)
-        kl_output = kl_pner(m_z_recog,m_z_prior, std_z_recog,std_z_prior)
-        print(kl_output)
+        ress = CVAE_loss(m_z_recog,m_z_prior, std_z_recog,std_z_prior, re_adj.detach().numpy(), org_adj)
         re_adj = torch.sigmoid(re_adj).detach().numpy()
         auc, val_acc, val_ap, conf_mtrx , precision, recall= roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(re_adj), sparse.csr_matrix(org_adj))
         auc_list.append(auc)
@@ -266,7 +265,7 @@ for idd in testId:
         
         if re_adj[idd][neighbour_id] >= 0.5:
             positive_count += 1
-            print("positive_count is: ", positive_count)
+            # print("positive_count is: ", positive_count)
             
  
 

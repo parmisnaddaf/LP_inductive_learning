@@ -814,6 +814,7 @@ def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agj
 
 
 
+
 # def mask_test_edges(adj, testId, trainId):
 #     # Remove diagonal elements
 #     adj = adj - sp.dia_matrix((adj.diagonal()[np.newaxis, :], [0]), shape=adj.shape)
@@ -936,7 +937,7 @@ def mask_test_edges(adj, testId, trainId):
 
 
 
-def kl_pner(m0, s0, m1, s1):
+def kl_pner(m0, m1, s0, s1):
     """
     Kullback-Liebler divergence from Gaussian pm,pv to Gaussian qm,qv.
     Also computes KL divergence from a single Gaussian pm,pv to a set
@@ -948,15 +949,20 @@ def kl_pner(m0, s0, m1, s1):
          = .5 * ( tr(S1^{-1} S0) + log |S1|/|S0| +
                   (m1 - m0)^T S1^{-1} (m1 - m0) - N )
     """
-    m0 = m0.detach().numpy()
-    m1 = m1.detach().numpy()
-    s0 = s0.detach().numpy()
-    s1 = s1.detach().numpy()
+    # m0 = m0.detach().numpy()
+    # m1 = m1.detach().numpy()
+    # s0 = s0.detach().numpy()
+    # s1 = s1.detach().numpy()
+
+    
+    # convert std to covariance
+    s0 = s0**2
+    s1= s1**2
 
     n = s1.shape[0]
     d = s1.shape[1]
 
-    N = m0.shape[0]
+    N = n * d
 
 
     diff = m1 - m0
@@ -966,21 +972,96 @@ def kl_pner(m0, s0, m1, s1):
     s1_inverse = 1 / s1
 
     # since both s0 and s1 are the elements of the diagonal matrix, their multipication is gonna be the element-wise multipication of s1_inverse and s0
-
     ss = s1_inverse * s0
 
     # Trace is same as adding up all the elements on the diagonal
     tr_term = np.sum(ss)
-
-    # det of a diagonal matrix is the multipication of all the elements on the diagonal
-    det_s0 = np.prod(s0)
-    det_s1 = np.prod(s1)
-
-    det_term = np.log(det_s1 / det_s0)
+    
+    #det_term: we log of a product can be simplified to sum(log) - sum(log) 
+    det_term = np.sum(np.log(s1)) - np.sum(np.log(s0))
+    
 
     # quad_term
-
     s1_inverse_quad = s1_inverse.reshape(1, n * d)
     quad_term = (diff.T * s1_inverse_quad) @ diff
 
-    return .5 * (tr_term + det_term + quad_term - N)
+    return .5 * (tr_term + det_term + quad_term[0][0] - N)
+
+
+
+
+def total_kl(m0, m1, s0, s1):
+    m0 = m0.detach().numpy()
+    m1 = m1.detach().numpy()
+    s0 = s0.detach().numpy()
+    s1 = s1.detach().numpy()
+    total_res = 0
+    torch_res_total = 0
+    for i in range(s0.shape[0]):
+        total_res += kl_new(m0[i], m1[i], s0[i], s1[i])
+        s0_kl = np.diag(s0[i]**2)
+        s1_kl = np.diag(s1[i]**2)
+        a =torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[i]), torch.tensor(s0_kl))
+        b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[i]), torch.tensor(s1_kl))
+        torch_res_total += torch.distributions.kl.kl_divergence(a, b)
+        
+    print("KL_PNER:    ", kl_pner(m0, m1, s0, s1))
+    print("torch_res_total: ", torch_res_total)
+    print("brand new kl res total: ",total_res )
+    return total_res
+        
+
+
+def kl_new(m0, m1, s0, s1):
+
+
+    # convert std to covariance
+    s0 = s0**2
+    s1= s1**2
+
+    n =  1
+    d = s1.shape[0]
+    
+    N = n * d
+
+
+    diff = m1 - m0
+    diff = diff.reshape(n * d, 1)
+
+    # inverse s1
+    s1_inverse = 1 / s1
+
+    # since both s0 and s1 are the elements of the diagonal matrix, their multipication is gonna be the element-wise multipication of s1_inverse and s0
+    ss = s1_inverse * s0
+
+    # Trace is same as adding up all the elements on the diagonal
+    tr_term = np.sum(ss)
+    
+    #det_term: we log of a product can be simplified to sum(log) - sum(log) 
+    det_term = np.sum(np.log(s1)) - np.sum(np.log(s0))
+    
+
+    # quad_term
+    s1_inverse_quad = s1_inverse.reshape(1, n * d)
+    quad_term = (diff.T * s1_inverse_quad) @ diff
+
+    return .5 * (tr_term + det_term + quad_term[0][0] - N)
+    
+    
+
+def CVAE_loss(m0, m1, s0, s1, pred, labels):
+
+    labels = torch.from_numpy(labels)
+    pred = torch.from_numpy(pred)
+    
+    pos_weight = torch.true_divide((labels.shape[0] ** 2 - torch.sum(labels)), torch.sum(
+    labels))  # addrressing imbalance data problem: ratio between positve to negative instance
+    norm = torch.true_divide(labels.shape[0] * labels.shape[0],
+                             ((labels.shape[0] * labels.shape[0] - torch.sum(labels) * 2)))
+    
+    posterior_cost = norm * F.binary_cross_entropy_with_logits(pred, labels, pos_weight=pos_weight)
+    
+    # kl_term = kl_pner(m0, m1, s0, s1)
+    kl_term = total_kl(m0, m1, s0, s1)
+    
+    return posterior_cost - kl_term
