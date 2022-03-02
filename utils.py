@@ -949,10 +949,10 @@ def kl_pner(m0, m1, s0, s1):
          = .5 * ( tr(S1^{-1} S0) + log |S1|/|S0| +
                   (m1 - m0)^T S1^{-1} (m1 - m0) - N )
     """
-    # m0 = m0.detach().numpy()
-    # m1 = m1.detach().numpy()
-    # s0 = s0.detach().numpy()
-    # s1 = s1.detach().numpy()
+    m0 = m0.detach().numpy()
+    m1 = m1.detach().numpy()
+    s0 = s0.detach().numpy()
+    s1 = s1.detach().numpy()
 
     
     # convert std to covariance
@@ -990,25 +990,42 @@ def kl_pner(m0, m1, s0, s1):
 
 
 
-def total_kl(m0, m1, s0, s1):
+def total_kl(m0, m1, s0, s1, id1, id2):
     m0 = m0.detach().numpy()
     m1 = m1.detach().numpy()
     s0 = s0.detach().numpy()
     s1 = s1.detach().numpy()
     total_res = 0
     torch_res_total = 0
-    for i in range(s0.shape[0]):
-        total_res += kl_new(m0[i], m1[i], s0[i], s1[i])
-        s0_kl = np.diag(s0[i]**2)
-        s1_kl = np.diag(s1[i]**2)
-        a =torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[i]), torch.tensor(s0_kl))
-        b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[i]), torch.tensor(s1_kl))
-        torch_res_total += torch.distributions.kl.kl_divergence(a, b)
+    #node 1
+    s0_kl = np.diag(s0[id1]**2)
+    s1_kl = np.diag(s1[id1]**2)
+    a =torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[id1]), torch.tensor(s0_kl))
+    b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[id1]), torch.tensor(s1_kl))
+    kl_res_1 = torch.distributions.kl.kl_divergence(a, b)
+    
+    #node 2
+    s0_kl = np.diag(s0[id2]**2)
+    s1_kl = np.diag(s1[id2]**2)
+    a =torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[id2]), torch.tensor(s0_kl))
+    b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[id2]), torch.tensor(s1_kl))
+    kl_res_2 = torch.distributions.kl.kl_divergence(a, b)
+    
+    return kl_res_1 + kl_res_2
+    
+    
+    # for i in range(s0.shape[0]):
+    #     total_res += kl_new(m0[i], m1[i], s0[i], s1[i])
+    #     s0_kl = np.diag(s0[i]**2)
+    #     s1_kl = np.diag(s1[i]**2)
+    #     a =torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[i]), torch.tensor(s0_kl))
+    #     b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[i]), torch.tensor(s1_kl))
+    #     torch_res_total += torch.distributions.kl.kl_divergence(a, b)
         
-    print("KL_PNER:    ", kl_pner(m0, m1, s0, s1))
-    print("torch_res_total: ", torch_res_total)
-    print("brand new kl res total: ",total_res )
-    return total_res
+    # print("KL_PNER:    ", kl_pner(m0, m1, s0, s1))
+    # print("torch_res_total: ", torch_res_total)
+    # print("brand new kl res total: ",total_res )
+    # return total_res
         
 
 
@@ -1049,7 +1066,7 @@ def kl_new(m0, m1, s0, s1):
     
     
 
-def CVAE_loss(m0, m1, s0, s1, pred, labels):
+def CVAE_loss(m0, m1, s0, s1, pred, labels, id1 , id2):
 
     labels = torch.from_numpy(labels)
     pred = torch.from_numpy(pred)
@@ -1057,11 +1074,15 @@ def CVAE_loss(m0, m1, s0, s1, pred, labels):
     pos_weight = torch.true_divide((labels.shape[0] ** 2 - torch.sum(labels)), torch.sum(
     labels))  # addrressing imbalance data problem: ratio between positve to negative instance
     norm = torch.true_divide(labels.shape[0] * labels.shape[0],
-                             ((labels.shape[0] * labels.shape[0] - torch.sum(labels) * 2)))
+                              ((labels.shape[0] * labels.shape[0] - torch.sum(labels) * 2)))
     
-    posterior_cost = norm * F.binary_cross_entropy_with_logits(pred, labels, pos_weight=pos_weight)
-    
-    # kl_term = kl_pner(m0, m1, s0, s1)
-    kl_term = total_kl(m0, m1, s0, s1)
+    norm = 1 
+    posterior_cost = -1 * (norm * F.binary_cross_entropy_with_logits(pred, labels, pos_weight=pos_weight))
+
+
+    kl_term = total_kl(m0, m1, s0, s1, id1, id2)
+    # kl_term =  kl_pner(m0, m1, s0, s1)
+    # print("posterior cost: ", posterior_cost)
+    # print("KL term: ", kl_term)
     
     return posterior_cost - kl_term

@@ -95,8 +95,8 @@ def train_PNModel(dataCenter, features, args, device):
             circles = shuffles_cir
     # Check for Encoder and redirect to appropriate function
     if encoder == "Multi_GCN":
-        # encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
-        encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
+        encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
+        # encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
     elif encoder == "mixture_of_GCNs":
         encoder_model = mixture_of_GCNs(in_feature=features.shape[1], num_relation=num_of_relations,
                                         latent_dim=num_of_comunities, layers=encoder_layers, DropOut_rate=DropOut_rate)

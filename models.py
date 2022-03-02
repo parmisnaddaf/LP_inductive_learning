@@ -1078,19 +1078,19 @@ class PN_FrameWork(torch.nn.Module):
     def forward(self, adj, x, train=True):
         
         if train:
-            # z_0 = self.get_z(x, self.latent_dim) # attribute encoder
-            # z, m_z, std_z = self.inference(adj, z_0)
-            z, m_z, std_z = self.inference(adj, x)
+            z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+            z, m_z, std_z = self.inference(adj, z_0)
+            # z, m_z, std_z = self.inference(adj, x)
         # x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), x), axis=1).astype(np.float32)
         # x_z_0 = torch.from_numpy(x_z_0)
         else:
-            # z_0 = self.get_z(x, self.latent_dim) 
+            z_0 = self.get_z(x, self.latent_dim) 
             # mu, sigma = 0, 0.1
             # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float() # use normal distribution for nodes not in evidence
-            z, m_z, std_z = self.inference(adj, x) # link encoder
+            z, m_z, std_z = self.inference(adj, z_0) # link encoder
         z = self.dropout(z)
         generated_adj = self.generator(z) # link decoder
-        return std_z, m_z, z, generated_adj
+        return std_z, m_z, z, generated_adj, 
 
     # asakhuja - End
     def reset_parameters(self):

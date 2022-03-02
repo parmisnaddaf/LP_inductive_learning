@@ -347,6 +347,7 @@ class DataCenter(object):
 
                 for pair in edge_list:
                     adjancy_matrix[pair[0],pair[1]] = 1
+                    adjancy_matrix[pair[1],pair[0]] = 1
                     
                 feat_data = []
                 labels = [] # label sequence of node
