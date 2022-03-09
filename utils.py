@@ -337,23 +337,23 @@ def optimizer_VAE(pred, labels, std_z, mean_z, num_nodes, pos_wight, norm, recon
     return z_kl, lambda_a * posterior_cost, acc, val_poterior_cost, lambda_x * posterior_cost_feat
 
 
-def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agjacency):
-    prediction = []
-    true_label = []
-    for edge in pos_edges:
-        prediction.append(reconstructed_adj[edge[0],edge[1]])
-        true_label.append(origianl_agjacency[edge[0], edge[1]])
+# def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agjacency):
+#     prediction = []
+#     true_label = []
+#     for edge in pos_edges:
+#         prediction.append(reconstructed_adj[edge[0],edge[1]])
+#         true_label.append(origianl_agjacency[edge[0], edge[1]])
 
-    for edge in negative_edges:
-        prediction.append(reconstructed_adj[edge[0], edge[1]])
-        true_label.append(origianl_agjacency[edge[0], edge[1]])
+#     for edge in negative_edges:
+#         prediction.append(reconstructed_adj[edge[0], edge[1]])
+#         true_label.append(origianl_agjacency[edge[0], edge[1]])
 
-    pred = [1 if x>.5 else 0 for x in prediction]
-    auc = roc_auc_score(y_score= prediction, y_true= true_label)
-    acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
-    ap=average_precision_score(y_score= prediction, y_true= true_label)
-    cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
-    return auc , acc,ap, cof_mtx
+#     pred = [1 if x>.5 else 0 for x in prediction]
+#     auc = roc_auc_score(y_score= prediction, y_true= true_label)
+#     acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
+#     ap=average_precision_score(y_score= prediction, y_true= true_label)
+#     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
+#     return auc , acc,ap, cof_mtx
 
 def sparse_to_tuple(sparse_mx):
     if not sp.isspmatrix_coo(sparse_mx):
@@ -800,7 +800,7 @@ def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agj
     recall = recall_score(y_pred= pred, y_true= true_label)
     auc = roc_auc_score(y_score= prediction, y_true= true_label)
     acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
-    ap= average_precision_score(y_score= prediction, y_true= true_label)
+    ap = average_precision_score(y_score= prediction, y_true= true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
     return auc , acc,ap, cof_mtx, precision, recall
 

@@ -49,7 +49,7 @@ import statistics
 parser = argparse.ArgumentParser(description='Inductive KDD')
 
 
-parser.add_argument('-e', dest="epoch_number", default=20, help="Number of Epochs")
+parser.add_argument('-e', dest="epoch_number", default=200, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
@@ -79,7 +79,7 @@ parser.add_argument('-modelpath', dest="mpath", default="VGAE_FrameWork_MODEL", 
 parser.add_argument('-Split', dest="split_the_data_to_train_test", default=True,
                     help="either use features or identity matrix; for synthasis data default is False")
 parser.add_argument('-s', dest="save_embeddings_to_file", default=True, help="save the latent vector of nodes")
-parser.add_argument('-CVAE_architecture', dest="CVAE_architecture", default='separate', help="the possible values are sequential, separate, and transfer")
+parser.add_argument('-CVAE_architecture', dest="CVAE_architecture", default='sequential', help="the possible values are sequential, separate, and transfer")
 
 args_kdd = parser.parse_args()
 
@@ -154,6 +154,21 @@ def get_matrices(test_edges, test_edges_false, org_adj, re_adj):
     
     
     
+    
+def run_link_enocder(z_prior, adj):
+    adj = sparse.csr_matrix(adj)
+    graph_dgl = dgl.from_scipy(adj)
+    graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
+    z, m_z, std_z = inductive_pn.inference(graph_dgl, z_prior) # recognition
+    re_adj =  inductive_pn.generator(z)
+    return std_z, m_z, z, re_adj
+
+
+
+def run_feature_enocder(x):
+    return inductive_pn.get_z(x, args_kdd.num_of_comunities)
+
+
 
 
 #%%  train inductive_pn
@@ -190,7 +205,7 @@ org_adj = adj_list.toarray()
 # xx = 0
 if args_kdd.CVAE_architecture == "separate":
     # run recognition separately
-    std_z_recog , m_z_recog , z_recog , re_adj_recog = run_network(features_kdd, org_adj)
+    std_z_recog , m_z_recog , z_recog , re_adj_recog = run_network(features_kdd, adj_list)
     get_matrices(test_edges, test_edges_false, org_adj, re_adj_recog)
     # run prior network separately
     for idd in testId:
@@ -219,17 +234,21 @@ if args_kdd.CVAE_architecture == "sequential":
             # if xx == 10:
             #     break
             adj_list_copy = copy.deepcopy(org_adj)
-            # adj_list_copy[idd,neighbour_id] = 0 # find a test edge anD set it to 0
+            adj_list_copy[idd,neighbour_id] = 1 # find a test edge and set it to 0
             std_z_prior , m_z_prior , z_prior , re_adj_prior = run_network(features_kdd, adj_list_copy) # prior
             get_matrices(test_edges, test_edges_false, org_adj, re_adj_prior)
+            
+            # z_prior2 = run_feature_enocder(features_kdd)
+            
+            # std_z_recog , m_z_recog , z_recog , re_adj_recog  = run_link_enocder(z_prior, adj_list)
             zeros_needed = features_kdd.shape[1] - z_prior.shape[1]
             z_prior_masked = np.hstack((z_prior.detach().numpy(), np.zeros((z_prior.detach().numpy().shape[0], zeros_needed)))) #add zeros at the end of z_prior to make it be the shape of features_kdd
+
             std_z_recog , m_z_recog , z_recog , re_adj_recog = run_network(torch.tensor(z_prior_masked.astype(np.float32)), adj_list) # recognition
             get_matrices(test_edges, test_edges_false, org_adj, re_adj_recog)     
             CVAE_list.append(CVAE_loss(m_z_recog,m_z_prior, std_z_recog,std_z_prior, re_adj_recog.detach().numpy(), org_adj, idd, neighbour_id).detach().numpy())
         # if xx == 10:
         #     break
-    
 
 
 # Print results    
@@ -249,4 +268,3 @@ print("val_acc_mean: {:03f}".format(val_acc_mean), " | auc_mean: {:03f}".format(
       " | recall_mean: {:03f}".format(recall_mean),
        " | CVAE_mean: {:03f}".format(CVAE_mean),
        " | P_Y_given_E: {:03f}".format(P_Y_given_E))
-    

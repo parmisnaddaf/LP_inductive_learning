@@ -222,8 +222,7 @@ def train_PNModel(dataCenter, features, args, device):
         print("Epoch: {:03d} | Loss: {:05f} | Reconstruction_loss: {:05f} | z_kl_loss: {:05f} | Accuracy: {:03f}".format(
             epoch + 1, loss.item(), reconstruction_loss.item(), z_kl.item(), acc))
     
-    # save the log plot on the current directory
-    #pltr.save_plot("VGAE_Framework_log_plot")
+
     model.eval()
     
     return model, z
