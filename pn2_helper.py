@@ -95,8 +95,8 @@ def train_PNModel(dataCenter, features, args, device):
             circles = shuffles_cir
     # Check for Encoder and redirect to appropriate function
     if encoder == "Multi_GCN":
-        encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
-        # encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
+        # encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
+        encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
     elif encoder == "mixture_of_GCNs":
         encoder_model = mixture_of_GCNs(in_feature=features.shape[1], num_relation=num_of_relations,
                                         latent_dim=num_of_comunities, layers=encoder_layers, DropOut_rate=DropOut_rate)
@@ -134,12 +134,11 @@ def train_PNModel(dataCenter, features, args, device):
         haveedge = True
         decoder_model = edge_enabeled_SBM_decoder(num_of_comunities, num_of_relations)
     
-    # asakhuja - Start Added Inner Dot product decoder
     elif decoder == "InnerDot":
         decoder_model = InnerProductDecoder()
-    # asakhuja End
     else:
         raise Exception("Sorry, this Decoder is not Impemented; check the input args")
+        
         
     feature_encoder_model = feature_encoder(features.view(-1, features.shape[1]), num_of_comunities)  
     if use_feature == False:
@@ -156,12 +155,9 @@ def train_PNModel(dataCenter, features, args, device):
         print('Finish spliting dataset to train and test. ')
     
     
-    #pltr = plotter.Plotter(functions=["Accuracy", "loss", "AUC"])
     
     adj_train = sp.csr_matrix(adj_train)
     
-    #graph_dgl = dgl.DGLGraph()
-    #graph_dgl.from_scipy_sparse_matrix(adj_train)
     graph_dgl = dgl.from_scipy(adj_train)
 
     # origianl_graph_statistics = GS.compute_graph_statistics(np.array(adj_train.todense()) + np.identity(adj_train.shape[0]))
@@ -196,8 +192,7 @@ def train_PNModel(dataCenter, features, args, device):
     norm = torch.true_divide(adj_train.shape[0] * adj_train.shape[0],
                              ((adj_train.shape[0] * adj_train.shape[0] - torch.sum(adj_train)) * 2))
     
-    best_recorded_validation = None
-    best_epoch = 0
+    
     for epoch in range(epoch_number):
         # print(epoch)
         model.train()
@@ -209,10 +204,7 @@ def train_PNModel(dataCenter, features, args, device):
                                                                        std_z, m_z, num_nodes, pos_wight, norm)
         loss = reconstruction_loss + z_kl
     
-        reconstructed_adj = torch.sigmoid(reconstructed_adj).detach().numpy()
-        model.eval()
-    
-        model.train()
+
         # backward propagation
         optimizer.zero_grad()
         loss.backward()

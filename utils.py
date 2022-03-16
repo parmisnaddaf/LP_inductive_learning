@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from numpy.random import default_rng
 from scipy.sparse import lil_matrix
 from scipy import sparse
-
+import dgl
 
 def get_gnn_embeddings(gnn_model, dataCenter, ds):
     print('Loading embeddings from trained GraphSAGE model.')
@@ -1086,3 +1086,47 @@ def CVAE_loss(m0, m1, s0, s1, pred, labels, id1 , id2):
     # print("KL term: ", kl_term)
     
     return posterior_cost - kl_term
+
+
+
+
+
+
+def run_network(feats, adj, model):
+    adj = sparse.csr_matrix(adj)
+    graph_dgl = dgl.from_scipy(adj)
+    graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
+    std_z, m_z, z, re_adj  = model(graph_dgl, feats, train=False)
+    return std_z, m_z, z, re_adj
+
+
+
+
+def get_matrices(test_edges, test_edges_false, org_adj, re_adj, auc_list, val_acc_list, val_ap_list, precision_list,recall_list ):
+    auc, val_acc, val_ap, conf_mtrx , precision, recall = roc_auc_estimator(test_edges, test_edges_false,
+                                                                        sparse.csr_matrix(torch.sigmoid(re_adj).detach().numpy()),
+                                                                        sparse.csr_matrix(org_adj))
+    auc_list.append(auc)
+    val_acc_list.append(val_acc)
+    val_ap_list.append(val_ap)
+    precision_list.append(precision)
+    recall_list.append(recall)
+    
+    
+    
+    
+def run_link_enocder(z_prior, adj, model):
+    adj = sparse.csr_matrix(adj)
+    graph_dgl = dgl.from_scipy(adj)
+    graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
+    z, m_z, std_z = model.inference(graph_dgl, z_prior) # recognition
+    re_adj =  model.generator(z)
+    return std_z, m_z, z, re_adj
+
+
+
+def run_feature_enocder(x, model):
+    return model.get_z(x, args_kdd.num_of_comunities)
+
+
+

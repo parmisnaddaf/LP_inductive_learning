@@ -1078,19 +1078,19 @@ class PN_FrameWork(torch.nn.Module):
     def forward(self, adj, x, train=True):
         
         if train:
-            z_0 = self.get_z(x, self.latent_dim) # attribute encoder
-            z, m_z, std_z = self.inference(adj, z_0)
+            # z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+            z, m_z, std_z = self.inference(adj, x)
             # z, m_z, std_z = self.inference(adj, x)
         # x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), x), axis=1).astype(np.float32)
         # x_z_0 = torch.from_numpy(x_z_0)
         else:
-            z_0 = self.get_z(x, self.latent_dim) 
+            # z_0 = self.get_z(x, self.latent_dim) 
             # mu, sigma = 0, 0.1
             # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float() # use normal distribution for nodes not in evidence
-            z, m_z, std_z = self.inference(adj, z_0) # link encoder
+            z, m_z, std_z = self.inference(adj, x) # link encoder
         z = self.dropout(z)
         generated_adj = self.generator(z) # link decoder
-        return std_z, m_z, z, generated_adj, 
+        return std_z, m_z, z, generated_adj 
 
     # asakhuja - End
     def reset_parameters(self):
@@ -1155,22 +1155,27 @@ class feature_encoder(torch.nn.Module):
         super(feature_encoder, self).__init__()
         self.leakyRelu = nn.LeakyReLU()
         
-        self.l1 = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
+        # self.l1 = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
+        
+        self.std = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
+        self.mean = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
 
 
+
+    # def forward(self, x):
+    #     h1 = self.leakyRelu(self.l1(x))   
+    #     return h1
 
     def forward(self, x):
-        h1 = self.leakyRelu(self.l1(x))   
-        return h1
-
-
-
-
-
-
-
-
-
+        m_q_z = self.mean(x)
+        std_q_z = torch.relu(self.std(x)) + .0001
+    
+        z = self.reparameterize(m_q_z, std_q_z)
+        return z
+    
+    def reparameterize(self, mean, std):
+        eps = torch.randn_like(std)
+        return eps.mul(std).add(mean)
 
 
 
