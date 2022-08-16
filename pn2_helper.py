@@ -31,6 +31,7 @@ import timeit
 #import src.graph_statistics as GS
 
 import classification
+import plotter
 
 
 #%% KDD model
@@ -51,7 +52,9 @@ def train_PNModel(dataCenter, features, args, device):
     use_feature = args.use_feature
     lr = args.lr
     save_embeddings_to_file = args.save_embeddings_to_file
+    is_prior = args.is_prior
 
+    pltr = plotter.Plotter(functions=["loss",  "Accuracy", "Recons Loss", "KL", "AUC"]) 
     synthesis_graphs = {"grid", "community", "lobster", "ego"}
     
     ds = args.dataSet
@@ -95,8 +98,8 @@ def train_PNModel(dataCenter, features, args, device):
             circles = shuffles_cir
     # Check for Encoder and redirect to appropriate function
     if encoder == "Multi_GCN":
-        # encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
-        encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
+        encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
+        # encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
     elif encoder == "mixture_of_GCNs":
         encoder_model = mixture_of_GCNs(in_feature=features.shape[1], num_relation=num_of_relations,
                                         latent_dim=num_of_comunities, layers=encoder_layers, DropOut_rate=DropOut_rate)
@@ -116,7 +119,7 @@ def train_PNModel(dataCenter, features, args, device):
         decoder_model = SBM_decoder(num_of_comunities, num_of_relations)
     
     elif decoder == "ML_SBM":
-        decoder_model = MultiLatetnt_SBM_decoder(num_of_relations, num_of_comunities, num_of_comunities, batch_norm, DropOut_rate)
+        decoder_model = MultiLatetnt_SBM_decoder(num_of_relations, num_of_comunities, num_of_comunities, batch_norm, DropOut_rate=0.3)
     
     elif decoder == "multi_inner_product":
         decoder_model = MapedInnerProductDecoder([32, 32], num_of_relations, num_of_comunities, batch_norm, DropOut_rate)
@@ -192,18 +195,44 @@ def train_PNModel(dataCenter, features, args, device):
     norm = torch.true_divide(adj_train.shape[0] * adj_train.shape[0],
                              ((adj_train.shape[0] * adj_train.shape[0] - torch.sum(adj_train)) * 2))
     
-    
+    print("is prior is:::::: ", is_prior)
     for epoch in range(epoch_number):
         # print(epoch)
         model.train()
         # forward propagation by using all nodes
-        std_z, m_z, z, reconstructed_adj = model(graph_dgl, feat_train, train=True)
+        std_z, m_z, z, reconstructed_adj = model(graph_dgl, feat_train, is_prior, train=True)
         # compute loss and accuracy
         z_kl, reconstruction_loss, acc, val_recons_loss = optimizer_VAE_pn(reconstructed_adj,
                                                                        adj_train + sp.eye(adj_train.shape[0]).todense(),
                                                                        std_z, m_z, num_nodes, pos_wight, norm)
         loss = reconstruction_loss + z_kl
     
+
+
+
+        reconstructed_adj = torch.sigmoid(reconstructed_adj).detach().numpy()
+        # model.eval()
+        # train_auc, train_acc, train_ap, train_conf = roc_auc_estimator(train_true, train_false,
+        #                                                       reconstructed_adj, original_adj)
+    
+        # if split_the_data_to_train_test == True:
+        #     val_auc, val_acc, val_ap, val_conf = roc_auc_estimator(val_edges, val_edges_false,
+        #                                                     reconstructed_adj, original_adj)
+    
+        #     # keep the history to plot
+        #     pltr.add_values(epoch, [loss.item(), train_acc,  reconstruction_loss.item(), z_kl, train_auc],
+        #                     [None, val_acc, val_recons_loss.item(),None, val_auc  # , val_ap
+        #                         ], redraw=False)  # ["Accuracy", "Loss", "AUC", "AP"]
+        # else:
+        #     # keep the history to plot
+        #     pltr.add_values(epoch, [acc, loss.item(), None  # , None
+        #                             ],
+        #                     [None, None, None  # , None
+        #                      ], redraw=False)  # ["Accuracy", "loss", "AUC", "AP"])
+    
+        # model.train()
+
+
 
         # backward propagation
         optimizer.zero_grad()

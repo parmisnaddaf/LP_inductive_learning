@@ -9,6 +9,9 @@ from dgl.nn.pytorch import GraphConv as GraphConv
 from torch.autograd import Variable
 from torch.nn import init
 
+import numpy as np
+from scipy.stats import multivariate_normal
+
 global haveedge
 haveedge = False
 
@@ -1053,7 +1056,7 @@ class MultiLatetnt_SBM_decoder(torch.nn.Module):
     
 
 class PN_FrameWork(torch.nn.Module):
-    def __init__(self, latent_dim, encoder, decoder, feature_encoder, not_evidence, mlp_decoder=False, layesrs=None):
+    def __init__(self, latent_dim, encoder, decoder, feature_encoder, not_evidence , mlp_decoder=False, layesrs=None):
         """
         :param latent_dim: the dimention of each embedded node; |z| or len(z)
         :param decoder:
@@ -1067,6 +1070,9 @@ class PN_FrameWork(torch.nn.Module):
         self.latent_dim = latent_dim
         self.feature_encoder = feature_encoder
         self.not_evidence = not_evidence
+        self.mq = None
+        self.sq = None
+        # self.is_prior = is_prior
 
         if mlp_decoder:
             self.embedding_level_mlp = node_mlp(input=latent_dim, layers=layesrs)
@@ -1075,21 +1081,63 @@ class PN_FrameWork(torch.nn.Module):
         self.reset_parameters()
 
 
-    def forward(self, adj, x, train=True):
+    def forward(self, adj, x, is_prior, train=True):
         
         if train:
-            # z_0 = self.get_z(x, self.latent_dim) # attribute encoder
-            z, m_z, std_z = self.inference(adj, x)
+            z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+            z, m_z, std_z = self.inference(adj, z_0)
+            # CVAE approximation 
+            generated_adj = self.generator(z) # link decoder
             # z, m_z, std_z = self.inference(adj, x)
         # x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), x), axis=1).astype(np.float32)
         # x_z_0 = torch.from_numpy(x_z_0)
-        else:
-            # z_0 = self.get_z(x, self.latent_dim) 
+        else:                
+            z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             # mu, sigma = 0, 0.1
             # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float() # use normal distribution for nodes not in evidence
-            z, m_z, std_z = self.inference(adj, x) # link encoder
+            z, m_z, std_z = self.inference(adj, z_0) # link encoder
+        
+
+            
+            generated_adj = self.generator(z) # link decoder
+            
+            if is_prior:
+                #if we use Monte Carlo sampling
+                #print("Monte Carlo")
+                # s = generated_adj
+                # for i in range (0,99):
+                #     z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+                #     z, m_z, std_z = self.inference(adj, z_0)
+                #     z = self.dropout(z)
+                #     generated_adj = self.generator(z)
+                #     s +=  generated_adj
+                # generated_adj = s/100
+                
+                # if important sampling
+                # print("Importance sampling")
+                # s = generated_adj
+                # generated_adj *= get_pdf(m_z,std_z,z)/get_pdf(self.mq,self.sq,z)
+                # for i in range (0,99):
+                #     z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+                #     z, m_z, std_z = self.inference(adj, z_0)
+                #     generated_adj = self.generator(z)
+                #     generated_adj *= get_pdf(m_z,std_z,z)/get_pdf(self.mq,self.sq,z)
+                #     s +=  generated_adj
+                
+                #if we use deterministic
+                generated_adj = self.generator(m_z) 
+                
+                
+                pass
+                # generated_adj = s/100
+            else:
+                self.mq = m_z
+                self.sq = std_z
+                
+                
         z = self.dropout(z)
-        generated_adj = self.generator(z) # link decoder
+        
+                
         return std_z, m_z, z, generated_adj 
 
     # asakhuja - End

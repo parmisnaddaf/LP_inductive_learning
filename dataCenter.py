@@ -518,7 +518,7 @@ class DataCenter(object):
                 setattr(self, dataSet+'_edge_labels', edge_labels[:index].toarray())
             
 
-    def _split_data(self, num_nodes, test_split = 0.3, val_split = 0.0):
+    def _split_data(self, num_nodes, test_split = 0.2, val_split = 0.1):
         rand_indices = np.random.permutation(num_nodes)
         
         test_size = int(num_nodes * test_split)

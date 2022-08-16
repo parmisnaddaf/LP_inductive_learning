@@ -8,6 +8,9 @@ from sklearn.utils import shuffle
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix,average_precision_score, recall_score, precision_score
 
+from torchmetrics import RetrievalHitRate
+
+
 import torch.nn as nn
 import scipy.sparse as sp
 import numpy as np
@@ -16,6 +19,9 @@ from numpy.random import default_rng
 from scipy.sparse import lil_matrix
 from scipy import sparse
 import dgl
+import torch.distributions as tdist
+
+
 
 def get_gnn_embeddings(gnn_model, dataCenter, ds):
     print('Loading embeddings from trained GraphSAGE model.')
@@ -208,7 +214,7 @@ def sparse_to_tuple(sparse_mx):
     return coords, values, shape
 
 
-def mask_test_edges(adj, feature):
+def mask_test_edges_old(adj, feature):
     # Function to build test set with 10% positive links
     # NOTE: Splits are randomized and results might slightly deviate from reported numbers in the paper.
     # TODO: Clean up.
@@ -312,10 +318,17 @@ def mask_test_edges(adj, feature):
     ignore_edges_inx[1].extend(test_edges[:, 1])
     ignore_edges_inx[0].extend(np.array(test_edges_false)[:, 0])
     ignore_edges_inx[1].extend(np.array(test_edges_false)[:, 1])
+    
+    
+    np.save('train.npy', train_edges)
+    np.save('valid.npy', val_edges)
+    np.save('test.npy', test_edges)
+
+    
 
     # NOTE: these edge lists only contain single direction of edge!
     return adj_train, train_edges, val_edges, val_edges_false, test_edges, test_edges_false, list(train_edges_true), train_edges_false,ignore_edges_inx, val_edge_idx
-
+    
 
 # objective Function
 def optimizer_VAE(pred, labels, std_z, mean_z, num_nodes, pos_wight, norm, reconstructed_feat, feat_train, inductive_task):
@@ -774,25 +787,52 @@ def optimizer_VAE_pn(pred, labels, std_z, mean_z, num_nodes, pos_wight, norm):
 
 
 def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agjacency):
+    print("we are here")
     prediction = []
     true_label = []
+    counter = 0
+    for edge in pos_edges:
+        prediction.append(reconstructed_adj[edge[0],edge[1]])
+        prediction.append(reconstructed_adj[edge[1],edge[0]])
+        true_label.append(origianl_agjacency[edge[0], edge[1]])
+        true_label.append(origianl_agjacency[edge[1], edge[0]])
+        
+    
+    
 
-    if type(pos_edges) == list or type(pos_edges) ==np.ndarray:
-        for edge in pos_edges:
-            prediction.append(reconstructed_adj[edge[0],edge[1]])
-            true_label.append(origianl_agjacency[edge[0], edge[1]])
+    # if type(pos_edges) == list or type(pos_edges) ==np.ndarray:
+    #     for edge in pos_edges:
+    #         prediction.append(reconstructed_adj[edge[0],edge[1]])
+    #         true_label.append(origianl_agjacency[edge[0], edge[1]])
 
-        for edge in negative_edges:
-            prediction.append(reconstructed_adj[edge[0], edge[1]])
-            true_label.append(origianl_agjacency[edge[0], edge[1]])
-    else:
-        prediction = list(reconstructed_adj.reshape(-1))
-        true_label = list(np.array(origianl_agjacency.todense()).reshape(-1))
-            
+    #     for edge in negative_edges:
+    #         prediction.append(reconstructed_adj[edge[0], edge[1]])
+    #         true_label.append(origianl_agjacency[edge[0], edge[1]])
+    # else:
+    #     prediction = list(reconstructed_adj.reshape(-1))
+    #     true_label = list(np.array(origianl_agjacency.todense()).reshape(-1))
+        
     pred = np.array(prediction)
     pred[pred>.5] = 1
     pred[pred < .5] = 0
     pred = pred.astype(int)
+    
+    print("len pred ",len(pred))
+    print(" # true ones: ", true_label.count(1))
+    print(" # pred ones: ", len(pred.nonzero()[0]))
+    
+    for i in range(len(true_label)):
+        if pred[i] == true_label[i] and true_label[i]== 1:
+            counter += 1
+
+    print("common ", counter)
+    
+    # print("t_label: ", true_label)
+    # print("p_label: ", pred)
+    common_elements = np.intersect1d(true_label, pred)
+    # print(common_elements)
+    #print(len(common_elements))
+    #print(len(pred))
     # pred = [1 if x>.5 else 0 for x in prediction]
     
     
@@ -802,15 +842,13 @@ def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agj
     acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
     ap = average_precision_score(y_score= prediction, y_true= true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
-    return auc , acc,ap, cof_mtx, precision, recall
-
-
-
-
-
-
-
-
+    
+    
+    
+    hr2 = RetrievalHitRate(k= int(0.1 * len(prediction)))
+    HR = hr2(torch.tensor(prediction), torch.tensor(true_label), indexes= torch.tensor([1]* len(prediction))).item()
+    
+    return auc , acc,ap, cof_mtx, precision, recall, HR
 
 
 
@@ -904,16 +942,19 @@ def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agj
 
 
 
-def mask_test_edges(adj, testId, trainId):
+def mask_test_edges(adj, testId, trainId, validId):
     adj_list = sparse.csr_matrix(adj)
     adj_list_i , adj_list_j = adj_list.nonzero()
     test_edges = []
     train_edges = []
+    valid_edges = []
     for i in range(len(adj_list_i)):
         if adj_list_i[i] in testId and adj_list_j[i] in testId:
             test_edges.append([adj_list_i[i], adj_list_j[i]])
         elif adj_list_i[i] in trainId and adj_list_j[i] in trainId:
             train_edges.append([adj_list_i[i], adj_list_j[i]])
+        elif adj_list_i[i] in validId and adj_list_j[i] in validId:
+            valid_edges.append([adj_list_i[i], adj_list_j[i]])
     
     test_edges_false = []
     adj_list_false_i , adj_list_false_j = sparse.find(adj_list==0)[:2]
@@ -930,9 +971,16 @@ def mask_test_edges(adj, testId, trainId):
         i = np.random.randint(0, adj_list_false_i.shape[0])
         if adj_list_false_i[i] in trainId and adj_list_false_j[i] in trainId:
             train_edges_false.append([adj_list_false_i[i] , adj_list_false_j[i]])
+            
+    valid_edges_false = []
+    
+    while len(valid_edges_false) < len(valid_edges):
+        i = np.random.randint(0, adj_list_false_i.shape[0])
+        if adj_list_false_i[i] in validId and adj_list_false_j[i] in validId:
+            valid_edges_false.append([adj_list_false_i[i] , adj_list_false_j[i]])
         
         
-    return test_edges_false, test_edges, train_edges_false, train_edges
+    return test_edges_false, test_edges, train_edges_false, train_edges, valid_edges_false, valid_edges
 
 
 
@@ -1090,32 +1138,48 @@ def CVAE_loss(m0, m1, s0, s1, pred, labels, id1 , id2):
 
 
 
+def get_neighbour_prob(rec_adj, idd, neighbour_list):
+    rec_adj = torch.sigmoid(rec_adj)
+    result = 1
+    for neighbour in neighbour_list:
+        result *= rec_adj[idd,neighbour]
+        
+    return result
+        
 
 
-def run_network(feats, adj, model):
+
+
+
+
+
+
+def get_matrices(test_edges, test_edges_false, org_adj, re_adj):
+     return roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(torch.sigmoid(re_adj).detach().numpy()), sparse.csr_matrix(org_adj))
+    
+    # auc_list.append(auc)
+    # val_acc_list.append(val_acc)
+    # val_ap_list.append(val_ap)
+    # precision_list.append(precision)
+    # recall_list.append(recall)
+    # HR_list.append(HR)
+    
+    #return auc_list, val_acc_list, val_ap_list, precision_list,recall_list, HR_list
+    
+
+def run_network(feats, adj, model,is_prior):
     adj = sparse.csr_matrix(adj)
     graph_dgl = dgl.from_scipy(adj)
     graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
-    std_z, m_z, z, re_adj  = model(graph_dgl, feats, train=False)
+    std_z, m_z, z, re_adj  = model(graph_dgl, feats, is_prior, train=False)
     return std_z, m_z, z, re_adj
 
 
-
-
-def get_matrices(test_edges, test_edges_false, org_adj, re_adj, auc_list, val_acc_list, val_ap_list, precision_list,recall_list ):
-    auc, val_acc, val_ap, conf_mtrx , precision, recall = roc_auc_estimator(test_edges, test_edges_false,
-                                                                        sparse.csr_matrix(torch.sigmoid(re_adj).detach().numpy()),
-                                                                        sparse.csr_matrix(org_adj))
-    auc_list.append(auc)
-    val_acc_list.append(val_acc)
-    val_ap_list.append(val_ap)
-    precision_list.append(precision)
-    recall_list.append(recall)
     
     
     
     
-def run_link_enocder(z_prior, adj, model):
+def run_link_encoder_decoder(z_prior, adj, model):
     adj = sparse.csr_matrix(adj)
     graph_dgl = dgl.from_scipy(adj)
     graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
@@ -1125,8 +1189,140 @@ def run_link_enocder(z_prior, adj, model):
 
 
 
-def run_feature_enocder(x, model):
+
+
+
+def run_link_encoder(z_prior, adj, model):
+    adj = sparse.csr_matrix(adj)
+    graph_dgl = dgl.from_scipy(adj)
+    graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
+    z, m_z, std_z = model.inference(graph_dgl, z_prior) # recognition
+    return std_z, m_z, z
+
+
+def run_feature_encoder(x, model):
     return model.get_z(x, args_kdd.num_of_comunities)
 
 
 
+def get_pdf(mean,std,z):
+    dist = multivariate_normal.pdf(z, mean=mean, cov=np.diag(std))
+    return dist
+
+
+    
+
+
+# def importance_sampling(mp,mq,sp,sq, x, model, adj):
+    
+#         print("Importance sampling")
+#         s = generated_adj
+#         for i in range (0,99):
+#             z_0 = run_feature_encoder(x, model)
+#             z, m_z, std_z = model.inference(adj, z_0)
+#             z = self.dropout(z)
+#             generated_adj = self.generator(z)
+#             s +=  generated_adj
+#         generated_adj = s/100
+                
+    
+    
+def make_false_edges(adj):
+    # Function to build test set with 10% positive links
+    # NOTE: Splits are randomized and results might slightly deviate from reported numbers in the paper.
+    # TODO: Clean up.
+
+    # Remove diagonal elements
+    adj = sparse.csr_matrix(adj)
+    adj = adj - sp.dia_matrix((adj.diagonal()[np.newaxis, :], [0]), shape=adj.shape)
+    adj.eliminate_zeros()
+    # Check that diag is zero:
+    # assert np.diag(adj.todense()).sum() == 0
+    assert adj.diagonal().sum() == 0
+
+    adj_triu = sp.triu(adj)
+    adj_tuple = sparse_to_tuple(adj_triu)
+    edges = adj_tuple[0]
+    edges_all = sparse_to_tuple(adj)[0]
+    num_test = int(np.floor(edges.shape[0] / 10.))
+    num_val = int(np.floor(edges.shape[0] / 20.))
+
+    all_edge_idx = list(range(edges.shape[0]))
+    np.random.shuffle(all_edge_idx)
+    val_edge_idx = all_edge_idx[:num_val]
+    test_edge_idx = all_edge_idx[num_val:(num_val + num_test)]
+    test_edges = edges[test_edge_idx]
+    val_edges = edges[val_edge_idx]
+    train_edges = np.delete(edges, np.hstack([test_edge_idx, val_edge_idx]), axis=0)
+    index = list(range(train_edges.shape[0]))
+    np.random.shuffle(index)
+    train_edges_true = train_edges[index[0:num_val]]
+
+    def ismember(a, b, tol=5):
+        rows_close = np.all(np.round(a - b[:, None], tol) == 0, axis=-1)
+        return np.any(rows_close)
+
+    test_edges_false = []
+    while len(test_edges_false) < len(test_edges):
+        idx_i = np.random.randint(0, adj.shape[0])
+        idx_j = np.random.randint(0, adj.shape[0])
+        if idx_i == idx_j:
+            continue
+        if ismember([idx_i, idx_j], edges_all):
+            continue
+        if test_edges_false:
+            if ismember([idx_j, idx_i], np.array(test_edges_false)):
+                continue
+
+        test_edges_false.append([idx_i, idx_j])
+
+    val_edges_false = []
+    while len(val_edges_false) < len(val_edges):
+        idx_i = np.random.randint(0, adj.shape[0])
+        idx_j = np.random.randint(0, adj.shape[0])
+        if idx_i == idx_j:
+            continue
+        if ismember([idx_i, idx_j], edges_all):
+            continue
+        if ismember([idx_i, idx_j], np.array(test_edges_false)):
+            continue
+        if val_edges_false:
+            if ismember([idx_j, idx_i], np.array(val_edges_false)):
+                continue
+        val_edges_false.append([idx_i, idx_j])
+
+    train_edges_false = []
+    while len(train_edges_false) < len(val_edges):
+        idx_i = np.random.randint(0, adj.shape[0])
+        idx_j = np.random.randint(0, adj.shape[0])
+        if idx_i == idx_j:
+            continue
+        if ismember([idx_i, idx_j], edges_all):
+            continue
+        if ismember([idx_i, idx_j], np.array(val_edges_false)):
+            continue
+        if ismember([idx_i, idx_j], np.array(test_edges_false)):
+            continue
+        if train_edges_false:
+            if ismember([idx_j, idx_i], np.array(train_edges_false)):
+                continue
+        train_edges_false.append([idx_i, idx_j])
+    # print(test_edges_false)
+    # print(val_edges_false)
+    # print(test_edges)
+    assert ~ismember(test_edges_false, edges_all)
+    assert ~ismember(val_edges_false, edges_all)
+    assert ~ismember(val_edges, train_edges)
+    assert ~ismember(test_edges, train_edges)
+    assert ~ismember(val_edges, test_edges)
+
+
+    # NOTE: these edge lists only contain single direction of edge!
+    return train_edges, val_edges, val_edges_false, test_edges, test_edges_false
+
+def get_single_link_evidence(adj_recog, idd, neighbours):
+    for n in neighbours:
+        adj_recog[idd, n]=0
+        adj_recog[n, idd]=0
+    return adj_recog
+    
