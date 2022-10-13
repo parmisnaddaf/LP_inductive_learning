@@ -8,6 +8,7 @@ from utils import *
 from dgl.nn.pytorch import GraphConv as GraphConv
 from torch.autograd import Variable
 from torch.nn import init
+import time
 
 import numpy as np
 from scipy.stats import multivariate_normal
@@ -15,16 +16,17 @@ from scipy.stats import multivariate_normal
 global haveedge
 haveedge = False
 
+
 class Classification(nn.Module):
 
     def __init__(self, emb_size, num_classes):
         super(Classification, self).__init__()
 
-        #self.weight = nn.Parameter(torch.FloatTensor(emb_size, num_classes))
+        # self.weight = nn.Parameter(torch.FloatTensor(emb_size, num_classes))
         self.layer = nn.Sequential(
-                                nn.Linear(emb_size, num_classes)      
-                                #nn.ReLU()
-                            )
+            nn.Linear(emb_size, num_classes)
+            # nn.ReLU()
+        )
         self.init_params()
 
     def init_params(self):
@@ -39,6 +41,7 @@ class Classification(nn.Module):
 
 class UnsupervisedLoss(object):
     """docstring for UnsupervisedLoss"""
+
     def __init__(self, adj_lists, train_nodes, device):
         super(UnsupervisedLoss, self).__init__()
         self.Q = 10
@@ -59,8 +62,8 @@ class UnsupervisedLoss(object):
 
     def get_loss_sage(self, embeddings, nodes):
         assert len(embeddings) == len(self.unique_nodes_batch)
-        assert False not in [nodes[i]==self.unique_nodes_batch[i] for i in range(len(nodes))]
-        node2index = {n:i for i,n in enumerate(self.unique_nodes_batch)}
+        assert False not in [nodes[i] == self.unique_nodes_batch[i] for i in range(len(nodes))]
+        node2index = {n: i for i, n in enumerate(self.unique_nodes_batch)}
 
         nodes_score = []
         assert len(self.node_positive_pairs) == len(self.node_negtive_pairs)
@@ -75,8 +78,8 @@ class UnsupervisedLoss(object):
             node_indexs = [node2index[x] for x in indexs[0]]
             neighb_indexs = [node2index[x] for x in indexs[1]]
             neg_score = F.cosine_similarity(embeddings[node_indexs], embeddings[neighb_indexs])
-            neg_score = self.Q*torch.mean(torch.log(torch.sigmoid(-neg_score)), 0)
-            #print(neg_score)
+            neg_score = self.Q * torch.mean(torch.log(torch.sigmoid(-neg_score)), 0)
+            # print(neg_score)
 
             # multiple positive score
             indexs = [list(x) for x in zip(*pps)]
@@ -84,18 +87,18 @@ class UnsupervisedLoss(object):
             neighb_indexs = [node2index[x] for x in indexs[1]]
             pos_score = F.cosine_similarity(embeddings[node_indexs], embeddings[neighb_indexs])
             pos_score = torch.log(torch.sigmoid(pos_score))
-            #print(pos_score)
+            # print(pos_score)
 
-            nodes_score.append(torch.mean(- pos_score - neg_score).view(1,-1))
-                
+            nodes_score.append(torch.mean(- pos_score - neg_score).view(1, -1))
+
         loss = torch.mean(torch.cat(nodes_score, 0))
-        
+
         return loss
 
     def get_loss_margin(self, embeddings, nodes):
         assert len(embeddings) == len(self.unique_nodes_batch)
-        assert False not in [nodes[i]==self.unique_nodes_batch[i] for i in range(len(nodes))]
-        node2index = {n:i for i,n in enumerate(self.unique_nodes_batch)}
+        assert False not in [nodes[i] == self.unique_nodes_batch[i] for i in range(len(nodes))]
+        node2index = {n: i for i, n in enumerate(self.unique_nodes_batch)}
 
         nodes_score = []
         assert len(self.node_positive_pairs) == len(self.node_negtive_pairs)
@@ -117,15 +120,15 @@ class UnsupervisedLoss(object):
             neg_score = F.cosine_similarity(embeddings[node_indexs], embeddings[neighb_indexs])
             neg_score, _ = torch.max(torch.log(torch.sigmoid(neg_score)), 0)
 
-            nodes_score.append(torch.max(torch.tensor(0.0).to(self.device), neg_score-pos_score+self.MARGIN).view(1,-1))
+            nodes_score.append(
+                torch.max(torch.tensor(0.0).to(self.device), neg_score - pos_score + self.MARGIN).view(1, -1))
             # nodes_score.append((-pos_score - neg_score).view(1,-1))
 
-        loss = torch.mean(torch.cat(nodes_score, 0),0)
+        loss = torch.mean(torch.cat(nodes_score, 0), 0)
 
         # loss = -torch.log(torch.sigmoid(pos_score))-4*torch.log(torch.sigmoid(-neg_score))
-        
-        return loss
 
+        return loss
 
     def extend_nodes(self, nodes, num_neg=6):
         self.positive_pairs = []
@@ -138,7 +141,8 @@ class UnsupervisedLoss(object):
         # print(self.positive_pairs)
         self.get_negtive_nodes(nodes, num_neg)
         # print(self.negtive_pairs)
-        self.unique_nodes_batch = list(set([i for x in self.positive_pairs for i in x]) | set([i for x in self.negtive_pairs for i in x]))
+        self.unique_nodes_batch = list(
+            set([i for x in self.positive_pairs for i in x]) | set([i for x in self.negtive_pairs for i in x]))
         assert set(self.target_nodes) < set(self.unique_nodes_batch)
         return self.unique_nodes_batch
 
@@ -173,24 +177,24 @@ class UnsupervisedLoss(object):
                     next_node = random.choice(list(neighs))
                     # self co-occurrences are useless
                     if next_node != node and next_node in self.train_nodes:
-                        self.positive_pairs.append((node,next_node))
-                        cur_pairs.append((node,next_node))
+                        self.positive_pairs.append((node, next_node))
+                        cur_pairs.append((node, next_node))
                     curr_node = next_node
 
             self.node_positive_pairs[node] = cur_pairs
         return self.positive_pairs
-        
+
 
 class SageLayer(nn.Module):
     """
     Encodes a node's using 'convolutional' GraphSage approach
     """
-    def __init__(self, input_size, out_size, gcn=False): 
+
+    def __init__(self, input_size, out_size, gcn=False):
         super(SageLayer, self).__init__()
 
         self.input_size = input_size
         self.out_size = out_size
-
 
         self.gcn = gcn
         self.weight = nn.Parameter(torch.FloatTensor(out_size, self.input_size if self.gcn else 2 * self.input_size))
@@ -214,8 +218,10 @@ class SageLayer(nn.Module):
         combined = F.relu(self.weight.mm(combined.t())).t()
         return combined
 
+
 class GraphSage(nn.Module):
     """docstring for GraphSage"""
+
     def __init__(self, num_layers, input_size, out_size, raw_features, adj_lists, device, gcn=False, agg_func='MEAN'):
         super(GraphSage, self).__init__()
 
@@ -229,9 +235,9 @@ class GraphSage(nn.Module):
         self.raw_features = raw_features
         self.adj_lists = adj_lists
 
-        for index in range(1, num_layers+1):
+        for index in range(1, num_layers + 1):
             layer_size = out_size if index != 1 else input_size
-            setattr(self, 'sage_layer'+str(index),SageLayer(layer_size, out_size, gcn=self.gcn)) 
+            setattr(self, 'sage_layer' + str(index), SageLayer(layer_size, out_size, gcn=self.gcn))
 
     def forward(self, nodes_batch):
         """
@@ -242,23 +248,24 @@ class GraphSage(nn.Module):
         nodes_batch_layers = [(lower_layer_nodes,)]
         # self.dc.logger.info('get_unique_neighs.')
         for i in range(self.num_layers):
-            lower_samp_neighs, lower_layer_nodes_dict, lower_layer_nodes= self._get_unique_neighs_list(lower_layer_nodes)
+            lower_samp_neighs, lower_layer_nodes_dict, lower_layer_nodes = self._get_unique_neighs_list(
+                lower_layer_nodes)
             nodes_batch_layers.insert(0, (lower_layer_nodes, lower_samp_neighs, lower_layer_nodes_dict))
 
         assert len(nodes_batch_layers) == self.num_layers + 1
 
         pre_hidden_embs = self.raw_features
-        for index in range(1, self.num_layers+1):
+        for index in range(1, self.num_layers + 1):
             nb = nodes_batch_layers[index][0]
-            pre_neighs = nodes_batch_layers[index-1]
+            pre_neighs = nodes_batch_layers[index - 1]
             # self.dc.logger.info('aggregate_feats.')
             aggregate_feats = self.aggregate(nb, pre_hidden_embs, pre_neighs)
-            sage_layer = getattr(self, 'sage_layer'+str(index))
+            sage_layer = getattr(self, 'sage_layer' + str(index))
             if index > 1:
                 nb = self._nodes_map(nb, pre_hidden_embs, pre_neighs)
             # self.dc.logger.info('sage_layer.')
             cur_hidden_embs = sage_layer(self_feats=pre_hidden_embs[nb],
-                                        aggregate_feats=aggregate_feats)
+                                         aggregate_feats=aggregate_feats)
             pre_hidden_embs = cur_hidden_embs
 
         return pre_hidden_embs
@@ -271,18 +278,18 @@ class GraphSage(nn.Module):
 
     def _get_unique_neighs_list(self, nodes, num_sample=10):
         _set = set
-        
+
         # TODO is this adj the whole adj or only the training set?
         to_neighs = [self.adj_lists[int(node)] for node in nodes]
-        
+
         if not num_sample is None:
             _sample = random.sample
-            samp_neighs = [_set(_sample(to_neigh, num_sample)) if len(to_neigh) >= num_sample else to_neigh for to_neigh in to_neighs]
+            samp_neighs = [_set(_sample(to_neigh, num_sample)) if len(to_neigh) >= num_sample else to_neigh for to_neigh
+                           in to_neighs]
         else:
             samp_neighs = to_neighs
-            
-        
-        samp_neighs = [samp_neigh | set([nodes[i]]) 
+
+        samp_neighs = [samp_neigh | set([nodes[i]])
                        for i, samp_neigh in enumerate(samp_neighs)]
         _unique_nodes_list = list(set.union(*samp_neighs))
         i = list(range(len(_unique_nodes_list)))
@@ -296,7 +303,7 @@ class GraphSage(nn.Module):
         indicator = [(nodes[i] in samp_neighs[i]) for i in range(len(samp_neighs))]
         assert (False not in indicator)
         if not self.gcn:
-            samp_neighs = [(samp_neighs[i]-set([nodes[i]])) for i in range(len(samp_neighs))]
+            samp_neighs = [(samp_neighs[i] - set([nodes[i]])) for i in range(len(samp_neighs))]
         # self.dc.logger.info('2')
         if len(pre_hidden_embs) == len(unique_nodes):
             embed_matrix = pre_hidden_embs
@@ -316,30 +323,28 @@ class GraphSage(nn.Module):
 
         elif self.agg_func == 'MAX':
             # print(mask)
-            indexs = [x.nonzero() for x in mask==1]
+            indexs = [x.nonzero() for x in mask == 1]
             aggregate_feats = []
             # self.dc.logger.info('5')
             for feat in [embed_matrix[x.squeeze()] for x in indexs]:
                 if len(feat.size()) == 1:
                     aggregate_feats.append(feat.view(1, -1))
                 else:
-                    aggregate_feats.append(torch.max(feat,0)[0].view(1, -1))
+                    aggregate_feats.append(torch.max(feat, 0)[0].view(1, -1))
             aggregate_feats = torch.cat(aggregate_feats, 0)
 
-
-        
         return aggregate_feats
-    
+
     def printModel(self):
-        print('*********** GraphSAGE Info ************') 
+        print('*********** GraphSAGE Info ************')
         print('Input size: ', self.input_size)
         print('Output size: ', self.out_size)
         print('Num layers: ', self.num_layers)
         print('Aggregation: ', self.agg_func)
-        
-    
+
+
 ##############################     KDD    #############################################3 
-    
+
 
 class GVAE_FrameWork(torch.nn.Module):
     def __init__(self, latent_dim, numb_of_rel, encoder, decoder, mlp_decoder=False, layesrs=None):
@@ -384,7 +389,7 @@ class GVAE_FrameWork(torch.nn.Module):
             z, m_z, std_z = self.inference(adj, x)
             z = self.dropout(z)
             generated_adj = self.generator(z)
-            generated_feat = self.decoder_feat(z , x.shape[1])
+            generated_feat = self.decoder_feat(z, x.shape[1])
         return std_z, m_z, z, generated_adj, generated_feat
 
     # asakhuja - End
@@ -428,16 +433,14 @@ class GVAE_FrameWork(torch.nn.Module):
         adj = self.decoder(z)
         return adj
         # asakhuja - End
-        
+
     def feat_generator(self, z):
         gen_x = []
         x = self.f_decoder(z)
         return x
-        
-        
+
     # pnaddaf - Start Adding feature encoder
-        
-    
+
     def enc1(self, x):
         """Encode a batch of samples, and return posterior parameters for each point."""
         en1 = nn.Linear(x.shape[1], 2000)
@@ -445,24 +448,21 @@ class GVAE_FrameWork(torch.nn.Module):
         l1 = nn.Linear(h1.shape[1], 128)
         h2 = self.relu(l1(h1))
         return h2
-        
-        
+
     def get_z(self, x):
         """Encode a batch of data points, x, into their z representations."""
         return self.enc1(x.view(-1, x.shape[1]))
 
     # # pnaddaf - End
-    
-    
+
     def decoder_feat(self, z, feat_dim):
         de1 = nn.Linear(z.shape[1], 2000)
         h1 = self.relu(de1(z))
         l1 = nn.Linear(h1.shape[1], feat_dim)
         h2 = self.relu(l1(h1))
         return h2
-    
-    
-    
+
+
 class multi_layer_GCN(torch.nn.Module):
     def __init__(self, in_feature, latent_dim=32, layers=[64]):
         """
@@ -498,11 +498,9 @@ class multi_layer_GCN(torch.nn.Module):
         return eps.mul(std).add(mean)
 
 
-
-
-
-
 from utils import *
+
+
 class MapedInnerProductDecoder(torch.nn.Module):
     """Decoder for using inner product of multiple transformed Z"""
 
@@ -529,21 +527,18 @@ class MapedInnerProductDecoder(torch.nn.Module):
             gen_adj.append(layer_i)
             # gen_adj.append(self.mlp_decoder[i](self.to_3D(z)))
         return torch.stack(gen_adj)
-    
-  
-  
-    
-    
-    
+
+
 ############################# NIPS MODELS ########################################
 class kernelGVAE(torch.nn.Module):
-    def __init__(self, in_feature_dim, hidden1,  latent_size, ker, decoder, device, encoder_fcc_dim = [128] , autoencoder=False):
+    def __init__(self, in_feature_dim, hidden1, latent_size, ker, decoder, device, encoder_fcc_dim=[128],
+                 autoencoder=False):
         super(kernelGVAE, self).__init__()
         self.first_conv_layer = GraphConvNN(128, hidden1)
         self.second_conv_layer = GraphConvNN(hidden1, hidden1)
         self.stochastic_mean_layer = GraphConvNN(hidden1, latent_size)
         self.stochastic_log_std_layer = GraphConvNN(hidden1, latent_size)
-        self.kernel = ker #TODO: bin and width whould be determined if kernel is his
+        self.kernel = ker  # TODO: bin and width whould be determined if kernel is his
 
         # self.reset_parameters()
         self.Drop = torch.nn.Dropout(0)
@@ -555,9 +550,8 @@ class kernelGVAE(torch.nn.Module):
         self.device = device
         self.relu = nn.ReLU()
 
-        if None !=encoder_fcc_dim:
-
-            self.fnn =node_mlp(hidden1, encoder_fcc_dim)
+        if None != encoder_fcc_dim:
+            self.fnn = node_mlp(hidden1, encoder_fcc_dim)
             self.stochastic_mean_layer = node_mlp(encoder_fcc_dim[-1], [latent_size])
             self.stochastic_log_std_layer = node_mlp(encoder_fcc_dim[-1], [latent_size])
 
@@ -568,22 +562,22 @@ class kernelGVAE(torch.nn.Module):
         :param features: normalized node feature matrix
         :return:
         """
-        
+
         z_0 = self.get_z(features.cpu())
-        x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), features[0].cpu().detach().numpy()), axis=1).astype(np.float32)
+        x_z_0 = np.concatenate((z_0.cpu().detach().numpy(), features[0].cpu().detach().numpy()), axis=1).astype(
+            np.float32)
         x_z_0 = torch.from_numpy(x_z_0).to(self.device)
-            
-        samples, mean, log_std = self.encode( graph, z_0.to(self.device),self.autoencoder)
-        
+
+        samples, mean, log_std = self.encode(graph, z_0.to(self.device), self.autoencoder)
+
         reconstructed_adj_logit = self.decode(samples)
         reconstructed_adj = torch.sigmoid(reconstructed_adj_logit)
-        kernel_value = self.kernel(reconstructed_adj,num_node)
-        
-        
-        
-        x_z  = np.concatenate((samples[0].cpu().detach().numpy(), features[0].cpu().detach().numpy()), axis=1).astype(np.float32)
+        kernel_value = self.kernel(reconstructed_adj, num_node)
+
+        x_z = np.concatenate((samples[0].cpu().detach().numpy(), features[0].cpu().detach().numpy()), axis=1).astype(
+            np.float32)
         x_z = torch.from_numpy(x_z).to(self.device)
-        
+
         generated_feat = self.decoder_feat(x_z.cpu().detach(), features.shape[2])
 
         mask = torch.zeros(graph.shape)
@@ -593,8 +587,8 @@ class kernelGVAE(torch.nn.Module):
             reconstructed_adj_logit[i, :, num_node[i]:] = -100
             reconstructed_adj_logit[i, num_node[i]:, :] = -100
             mask[i, :num_node[i], :num_node[i]] = 1
-            mean[i,num_node[i]:, :]=  0
-            log_std[i,num_node[i]:, :]=  0
+            mean[i, num_node[i]:, :] = 0
+            log_std[i, num_node[i]:, :] = 0
 
         reconstructed_adj = reconstructed_adj * mask.to(self.device)
         # reconstructed_adj_logit  = reconstructed_adj_logit + mask_logit
@@ -603,23 +597,22 @@ class kernelGVAE(torch.nn.Module):
     def encode(self, graph, features, autoencoder):
         h = self.first_conv_layer(graph, features)
         h = self.Drop(h)
-        h= torch.tanh(h)
+        h = torch.tanh(h)
         h = self.second_conv_layer(graph, h)
         h = torch.tanh(h)
-        if type(self.stochastic_mean_layer) ==GraphConvNN:
+        if type(self.stochastic_mean_layer) == GraphConvNN:
             mean = self.stochastic_mean_layer(graph, h)
             log_std = self.stochastic_log_std_layer(graph, h)
         else:
             h = self.fnn(h)
-            mean = self.stochastic_mean_layer(h,activation = lambda x:x)
-            log_std = self.stochastic_log_std_layer(h,activation = lambda x:x)
+            mean = self.stochastic_mean_layer(h, activation=lambda x: x)
+            log_std = self.stochastic_log_std_layer(h, activation=lambda x: x)
 
-        if autoencoder==False:
+        if autoencoder == False:
             sample = self.reparameterize(mean, log_std, node_num)
         else:
-            sample = mean*1
+            sample = mean * 1
         return sample, mean, log_std
-
 
     def reparameterize(self, mean, log_std, node_num):
         # std = torch.exp(log_std)
@@ -631,10 +624,9 @@ class kernelGVAE(torch.nn.Module):
         sample = eps.mul(var).add(mean)
 
         for i, node_size in enumerate(node_num):
-            sample[i][node_size:,:]=0
+            sample[i][node_size:, :] = 0
         return sample
-    
-    
+
     def enc1(self, x):
         """Encode a batch of samples, and return posterior parameters for each point."""
         en1 = nn.Linear(x.shape[1], 2000)
@@ -642,31 +634,26 @@ class kernelGVAE(torch.nn.Module):
         l1 = nn.Linear(h1.shape[1], 128)
         h2 = self.relu(l1(h1))
         return h2
-        
-        
+
     def get_z(self, x):
-        """Encode a batch of data points, x, into their z representations."""    
+        """Encode a batch of data points, x, into their z representations."""
         return self.enc1(x.view(-1, x.shape[2]))
-        
-        
+
     def decoder_feat(self, z, feat_dim):
         de1 = nn.Linear(z.shape[1], 2000)
         h1 = self.relu(de1(z))
         l1 = nn.Linear(h1.shape[1], feat_dim)
         h2 = self.relu(l1(h1))
         return h2
-    
 
-
-
-        
 
 class kernel(torch.nn.Module):
     """
      this class return a list of kernel ordered by keywords in kernel_type
     """
+
     def __init__(self, **ker):
-        
+
         """
         :param ker:
         kernel_type; a list of string which determine needed kernels
@@ -674,35 +661,33 @@ class kernel(torch.nn.Module):
         super(kernel, self).__init__()
         self.kernel_type = ker.get("kernel_type")
         kernel_set = set(self.kernel_type)
-        
-        
+
         self.device = ker.get("device")
 
         if "in_degree_dist" in kernel_set or "out_degree_dist" in kernel_set:
-            self.degree_hist = Histogram( self.device, ker.get("degree_bin_width").to(self.device), ker.get("degree_bin_center").to(self.device))
+            self.degree_hist = Histogram(self.device, ker.get("degree_bin_width").to(self.device),
+                                         ker.get("degree_bin_center").to(self.device))
 
         if "RPF" in kernel_set:
             self.num_of_steps = ker.get("step_num")
-            self.hist = Histogram(self.device, ker.get("bin_width"), ker.get("bin_center") )
+            self.hist = Histogram(self.device, ker.get("bin_width"), ker.get("bin_center"))
 
         if "trans_matrix" in kernel_set:
             self.num_of_steps = ker.get("step_num")
 
-
-
-    def forward(self,adj, num_nodes):
+    def forward(self, adj, num_nodes):
         vec = self.kernel_function(adj, num_nodes)
         # return self.hist(vec)
         return vec
 
-    def kernel_function(self, adj, num_nodes): # TODO: another var for keeping the number of moments
+    def kernel_function(self, adj, num_nodes):  # TODO: another var for keeping the number of moments
         # ToDo: here we assumed the matrix is symetrix(undirected) which might not
         vec = []  # feature vector
         for kernel in self.kernel_type:
             if "in_degree_dist" == kernel:
                 degree_hit = []
                 for i in range(adj.shape[0]):
-                    degree = adj[i,:num_nodes[i],:num_nodes[i]].sum(1).view(1, num_nodes[i])
+                    degree = adj[i, :num_nodes[i], :num_nodes[i]].sum(1).view(1, num_nodes[i])
                     degree_hit.append(self.degree_hist(degree.to(self.device)))
                 vec.append(torch.cat(degree_hit))
             if "out_degree_dist" == kernel:
@@ -712,8 +697,8 @@ class kernel(torch.nn.Module):
                     degree_hit.append(self.degree_hist(degree))
                 vec.append(torch.cat(degree_hit))
             if "RPF" == kernel:
-                raise("should be changed") #ToDo: need to be fixed
-                tr_p = self.S_step_trasition_probablity( self.device, adj, num_nodes, self.num_of_steps)
+                raise ("should be changed")  # ToDo: need to be fixed
+                tr_p = self.S_step_trasition_probablity(self.device, adj, num_nodes, self.num_of_steps)
                 for i in range(len(tr_p)):
                     vec.append(self.hist(torch.diag(tr_p[i])))
 
@@ -744,30 +729,29 @@ class kernel(torch.nn.Module):
         """
         mask = torch.zeros(adj.shape).to(device)
         for i in range(adj.shape[0]):
-            mask[i,:num_node[i],:num_node[i]] = 1
+            mask[i, :num_node[i], :num_node[i]] = 1
 
         p1 = adj.to(device)
         p1 = p1 * mask
         # ind = torch.eye(adj[0].shape[0])
         # p1 = p1 - ind
         TP_list = []
-        p1 = p1*(p1.sum(2).float().clamp(min=1) ** -1).view(adj.shape[0],adj.shape[1], 1)
+        p1 = p1 * (p1.sum(2).float().clamp(min=1) ** -1).view(adj.shape[0], adj.shape[1], 1)
 
         # p1[p1!=p1] = 0
         # p1 = p1 * mask
 
-        if s>0:
+        if s > 0:
             # TP_list.append(torch.matmul(p1,p1))
-            TP_list.append( p1)
-        for i in range(s-1):
-            TP_list.append(torch.matmul(p1, TP_list[-1] ))
+            TP_list.append(p1)
+        for i in range(s - 1):
+            TP_list.append(torch.matmul(p1, TP_list[-1]))
         return TP_list
 
 
-
 class Histogram(torch.nn.Module):
-    def __init__(self, device, bin_width = None, bin_centers = None):
-        
+    def __init__(self, device, bin_width=None, bin_centers=None):
+
         super(Histogram, self).__init__()
         self.bin_width = bin_width.to(device)
         self.bin_center = bin_centers.to(device)
@@ -777,23 +761,24 @@ class Histogram(torch.nn.Module):
             self.bin_num = self.bin_width.shape[0]
 
     def forward(self, vec):
-        score_vec = vec.view(vec.shape[0],1, vec.shape[1], ) - self.bin_center
+        score_vec = vec.view(vec.shape[0], 1, vec.shape[1], ) - self.bin_center
         # score_vec = vec-self.bin_center
-        score_vec = 1-torch.abs(score_vec)*self.bin_width
+        score_vec = 1 - torch.abs(score_vec) * self.bin_width
         score_vec = torch.relu(score_vec)
         return score_vec.sum(2)
 
     def prism(self):
         pass
-    
-    
+
+
 class FC_InnerDOTdecoder(torch.nn.Module):
-    def __init__(self,input,output,laten_size ,layer=[256,1024,256]):
-        super(FC_InnerDOTdecoder,self).__init__()
+    def __init__(self, input, output, laten_size, layer=[256, 1024, 256]):
+        super(FC_InnerDOTdecoder, self).__init__()
         self.lamda = torch.nn.Parameter(torch.Tensor(laten_size, laten_size))
-        layer = [input]+layer + [output]
-        self.layers = torch.nn.ModuleList([torch.nn.Linear(layer[i],layer[i+1]) for i in range(len(layer)-1)])
+        layer = [input] + layer + [output]
+        self.layers = torch.nn.ModuleList([torch.nn.Linear(layer[i], layer[i + 1]) for i in range(len(layer) - 1)])
         self.reset_parameters()
+
     # def forward(self,Z):
     #     shape = Z.shape
     #     z = Z.reshape(shape[0],-1)
@@ -803,7 +788,7 @@ class FC_InnerDOTdecoder(torch.nn.Module):
     #     # Z = torch.sigmoid(Z)
     # return z.reshape(shape[0], shape[-2], shape[-2])
     def forward(self, in_tensor, activation=torch.nn.ReLU()):
-        h = in_tensor.reshape(in_tensor.shape[0],-1)
+        h = in_tensor.reshape(in_tensor.shape[0], -1)
         for i in range(len(self.layers)):
             # if self.norm_layers != None:
             #     if len(h.shape) == 2:
@@ -815,16 +800,19 @@ class FC_InnerDOTdecoder(torch.nn.Module):
             #         h = h.reshape(shape)
             # h = self.dropout(h)
             h = self.layers[i](h)
-            if ((i!=len(self.layers))):
-              h = activation(h)
-        h = h.reshape(in_tensor.shape[0], in_tensor.shape[1],-1)
-        return torch.matmul(torch.matmul(h,self.lamda), h.permute(0, 2, 1))
+            if ((i != len(self.layers))):
+                h = activation(h)
+        h = h.reshape(in_tensor.shape[0], in_tensor.shape[1], -1)
+        return torch.matmul(torch.matmul(h, self.lamda), h.permute(0, 2, 1))
 
     def reset_parameters(self):
         self.lamda = torch.nn.init.xavier_uniform_(self.lamda)
+
+
 class InnerDOTdecoder(torch.nn.Module):
     def __init__(self):
-        super(InnerDOTdecoder,self).__init__()
+        super(InnerDOTdecoder, self).__init__()
+
     # def forward(self,Z):
     #     shape = Z.shape
     #     z = Z.reshape(shape[0],-1)
@@ -834,9 +822,7 @@ class InnerDOTdecoder(torch.nn.Module):
     #     # Z = torch.sigmoid(Z)
     # return z.reshape(shape[0], shape[-2], shape[-2])
     def forward(self, h):
-       return torch.matmul(h, h.permute(0, 2, 1))
-
-
+        return torch.matmul(h, h.permute(0, 2, 1))
 
 
 class GraphConvNN(torch.nn.Module):
@@ -895,6 +881,7 @@ class GraphConvNN(torch.nn.Module):
     bias : torch.Tensor
         The learnable bias tensor.
     """
+
     def __init__(self,
                  in_feats,
                  out_feats,
@@ -905,7 +892,7 @@ class GraphConvNN(torch.nn.Module):
         super(GraphConvNN, self).__init__()
         if norm not in ('none', 'both', 'right'):
             raise ('Invalid norm value. Must be either "none", "both" or "right".'
-                           ' But got "{}".'.format(norm))
+                   ' But got "{}".'.format(norm))
         self._in_feats = in_feats
         self._out_feats = out_feats
         self._norm = norm
@@ -957,7 +944,6 @@ class GraphConvNN(torch.nn.Module):
             The output feature
         """
 
-
         if self._norm == 'both':
             degs = graph.sum(-2).float().clamp(min=1)
             norm = torch.pow(degs, -0.5)
@@ -968,8 +954,8 @@ class GraphConvNN(torch.nn.Module):
         if weight is not None:
             if self.weight is not None:
                 raise ('External weight is provided while at the same time the'
-                               ' module has defined its own weight parameter. Please'
-                               ' create the module with flag weight=False.')
+                       ' module has defined its own weight parameter. Please'
+                       ' create the module with flag weight=False.')
         else:
             weight = self.weight
 
@@ -1020,16 +1006,13 @@ class GraphConvNN(torch.nn.Module):
         return summary.format(**self.__dict__)
 
 
-
-
-
 class MultiLatetnt_SBM_decoder(torch.nn.Module):
 
-    def __init__(self, number_of_rel, Lambda_dim, in_dim, normalize, DropOut_rate, node_trns_layers= [32] ):
+    def __init__(self, number_of_rel, Lambda_dim, in_dim, normalize, DropOut_rate, node_trns_layers=[32]):
         super(MultiLatetnt_SBM_decoder, self).__init__()
 
         self.nodeTransformer = torch.nn.ModuleList(
-            node_mlp(in_dim, node_trns_layers +[Lambda_dim], normalize, DropOut_rate) for i in range(number_of_rel))
+            node_mlp(in_dim, node_trns_layers + [Lambda_dim], normalize, DropOut_rate) for i in range(number_of_rel))
 
         self.lambdas = torch.nn.ParameterList(
             torch.nn.Parameter(torch.Tensor(Lambda_dim, Lambda_dim)) for i in range(number_of_rel))
@@ -1051,12 +1034,11 @@ class MultiLatetnt_SBM_decoder(torch.nn.Module):
         return torch.sum(torch.stack(gen_adj), 0)
 
 
+##############################     PN    #############################################3
 
-##############################     PN    #############################################3 
-    
 
 class PN_FrameWork(torch.nn.Module):
-    def __init__(self, latent_dim, encoder, decoder, feature_encoder, not_evidence , mlp_decoder=False, layesrs=None):
+    def __init__(self, latent_dim, encoder, decoder, feature_encoder, not_evidence, mlp_decoder=False, layesrs=None):
         """
         :param latent_dim: the dimention of each embedded node; |z| or len(z)
         :param decoder:
@@ -1080,65 +1062,159 @@ class PN_FrameWork(torch.nn.Module):
         self.dropout = torch.nn.Dropout(0)
         self.reset_parameters()
 
-
     def forward(self, adj, x, is_prior, train=True):
-        
+
         if train:
-            z_0 = self.get_z(x, self.latent_dim) # attribute encoder
-            z, m_z, std_z = self.inference(adj, z_0)
+            z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+            z, m_z, std_z = self.inference(adj, z_0)  # link encoder
             # CVAE approximation 
-            generated_adj = self.generator(z) # link decoder
+            generated_adj = self.generator(z)  # link decoder
             # z, m_z, std_z = self.inference(adj, x)
         # x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), x), axis=1).astype(np.float32)
         # x_z_0 = torch.from_numpy(x_z_0)
-        else:                
+        else:
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             # mu, sigma = 0, 0.1
             # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float() # use normal distribution for nodes not in evidence
-            z, m_z, std_z = self.inference(adj, z_0) # link encoder
-        
+            z, m_z, std_z = self.inference(adj, z_0)  # link encoder
 
-            
-            generated_adj = self.generator(z) # link decoder
-            
+            generated_adj = self.generator(z)  # link decoder
+
             if is_prior:
-                #if we use Monte Carlo sampling
-                #print("Monte Carlo")
+
+                # #if we use Monte Carlo sampling
+                # print("Monte Carlo")
                 # s = generated_adj
-                # for i in range (0,99):
+                # num_it = 100
+                # for i in range (num_i-1):
                 #     z_0 = self.get_z(x, self.latent_dim) # attribute encoder
                 #     z, m_z, std_z = self.inference(adj, z_0)
                 #     z = self.dropout(z)
                 #     generated_adj = self.generator(z)
                 #     s +=  generated_adj
-                # generated_adj = s/100
-                
+                # generated_adj = s/num_it
+
                 # if important sampling
-                # print("Importance sampling")
-                # s = generated_adj
-                # generated_adj *= get_pdf(m_z,std_z,z)/get_pdf(self.mq,self.sq,z)
-                # for i in range (0,99):
-                #     z_0 = self.get_z(x, self.latent_dim) # attribute encoder
-                #     z, m_z, std_z = self.inference(adj, z_0)
-                #     generated_adj = self.generator(z)
-                #     generated_adj *= get_pdf(m_z,std_z,z)/get_pdf(self.mq,self.sq,z)
-                #     s +=  generated_adj
-                
-                #if we use deterministic
-                generated_adj = self.generator(m_z) 
-                
-                
-                pass
-                # generated_adj = s/100
+                print("Importance sampling")
+                start_time = time.time()
+                s = generated_adj
+                num_it = 100
+                for i in range(num_it - 1):
+                    # print(torch.mean(self.mq))
+                    # print(torch.mean(self.sq))
+
+                    z_s = self.reparameterize(self.mq, self.sq)
+
+                    # get z from prior
+                    z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+                    z, m_z, std_z = self.inference(adj, z_0)  # link encoder
+
+                    # print(torch.mean(m_z))
+                    # print(torch.mean(std_z))
+
+                    prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s)
+                    # recog_pdf = get_pdf(, z_s)
+
+                    # print("pdf prior ", prior_pdf)
+                    # print("pdf recog", recog_pdf)
+
+                    coefficient = torch.tensor(prior_pdf - recog_pdf)
+                    # print("COEF: ", coefficient)
+
+                    # KLD SANITY
+                    kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
+                    # print("kld: ", kld)
+                    # print("kld_eye: ", kld_eye )
+                    # print("eclidean dist", sanity)
+
+                    generated_adj = self.generator(z_s)
+
+                    # print("generated_adj_org: ", generated_adj)
+                    log_generated_adj = torch.log(torch.sigmoid(generated_adj))
+                    # print("generated_adj_log: ", log_generated_adj)
+                    log_generated_adj_added = torch.add(log_generated_adj, coefficient)
+                    # print("generated_adj_add: ", log_generated_adj_added)
+                    generated_adj_final = torch.exp(log_generated_adj)
+                    # print(len(generated_adj_final[generated_adj_final>0]))
+                    # print("generated_adj_final: ", generated_adj_final)
+                    s += generated_adj_final
+                generated_adj = s / num_it
+                tac = time.perf_counter()
+                print("--- %s seconds ---" % (time.time() - start_time))
+
+                # #if we use deterministic
+                # generated_adj = self.generator(m_z) # Give the mean
+
+
             else:
                 self.mq = m_z
                 self.sq = std_z
-                
-                
+
         z = self.dropout(z)
-        
-                
-        return std_z, m_z, z, generated_adj 
+
+        return std_z, m_z, z, generated_adj
+
+    def kld_d(self, m0, s0, m1, s1):
+
+        m0 = m0.detach().numpy()
+        m1 = m1.detach().numpy()
+        s0 = s0.detach().numpy()
+        s1 = s1.detach().numpy()
+        total_res = 0
+        torch_res_total = 0
+        torch_res_total_eye = 0
+
+        for i in range(s0.shape[0]):
+            s0_kl_eye = np.eye(s0.shape[1])
+            s1_kl_eye = np.eye(s0.shape[1])
+
+            total_res += self.kl_new(m0[i], m1[i], np.ones(s0.shape[1]), np.ones(s0.shape[1]))
+            s0_kl = np.diag(s0[i] ** 2)
+            s1_kl = np.diag(s1[i] ** 2)
+
+            a = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[i]), torch.tensor(s0_kl))
+            b = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[i]), torch.tensor(s1_kl))
+            a_eye = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m0[i]), torch.tensor(
+                s0_kl_eye.astype(np.float32)))
+            b_eye = torch.distributions.multivariate_normal.MultivariateNormal(torch.tensor(m1[i]), torch.tensor(
+                s1_kl_eye.astype(np.float32)))
+            torch_res_total += torch.distributions.kl.kl_divergence(a, b)
+            torch_res_total_eye += torch.distributions.kl.kl_divergence(a_eye, b_eye)
+        # sanity_check = self.kl_new(m0, m1, s0_kl_eye.astype(np.float32), s1_kl_eye.astype(np.float32) )
+
+        return torch_res_total, torch_res_total_eye, total_res
+
+    def kl_new(self, m0, m1, s0, s1):
+
+        # convert std to covariance
+        s0 = s0 ** 2
+        s1 = s1 ** 2
+
+        n = 1
+        d = s1.shape[0]
+
+        N = n * d
+
+        diff = m1 - m0
+        diff = diff.reshape(n * d, 1)
+
+        # inverse s1
+        s1_inverse = 1 / s1
+
+        # since both s0 and s1 are the elements of the diagonal matrix, their multipication is gonna be the element-wise multipication of s1_inverse and s0
+        ss = s1_inverse * s0
+
+        # Trace is same as adding up all the elements on the diagonal
+        tr_term = np.sum(ss)
+
+        # det_term: we log of a product can be simplified to sum(log) - sum(log)
+        det_term = np.sum(np.log(s1)) - np.sum(np.log(s0))
+
+        # quad_term
+        s1_inverse_quad = s1_inverse.reshape(1, n * d)
+        quad_term = (diff.T * s1_inverse_quad) @ diff
+
+        return .5 * (tr_term + det_term + quad_term[0][0] - N)
 
     # asakhuja - End
     def reset_parameters(self):
@@ -1181,16 +1257,17 @@ class PN_FrameWork(torch.nn.Module):
         adj = self.decoder(z)
         return adj
         # asakhuja - End
-                
-        
+
     def get_z(self, x, latent_dim):
         """Encode a batch of data points, x, into their z representations."""
 
         return self.feature_encoder(x)
-    
+
+    # def update_mq_sq(mq,sq):
+    #     self.mq = mq
+    #     self.sq = sq
+
     # # pnaddaf - End
-
-
 
 
 class feature_encoder(torch.nn.Module):
@@ -1202,13 +1279,11 @@ class feature_encoder(torch.nn.Module):
         """
         super(feature_encoder, self).__init__()
         self.leakyRelu = nn.LeakyReLU()
-        
+
         # self.l1 = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
-        
+
         self.std = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
         self.mean = nn.Linear(in_features=in_feature.shape[1], out_features=latent_dim)
-
-
 
     # def forward(self, x):
     #     h1 = self.leakyRelu(self.l1(x))   
@@ -1217,44 +1292,10 @@ class feature_encoder(torch.nn.Module):
     def forward(self, x):
         m_q_z = self.mean(x)
         std_q_z = torch.relu(self.std(x)) + .0001
-    
+
         z = self.reparameterize(m_q_z, std_q_z)
         return z
-    
+
     def reparameterize(self, mean, std):
         eps = torch.randn_like(std)
         return eps.mul(std).add(mean)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-         
-
-
-
-         

@@ -152,7 +152,7 @@ def train_PNModel(dataCenter, features, args, device):
         trainId = getattr(dataCenter, ds + '_train')
         validId = getattr(dataCenter, ds + '_val')
         testId = getattr(dataCenter, ds + '_test')
-        adj_train , adj_val, adj_test, feat_train, feat_val, feat_test= make_test_train_gpu(
+        adj_train , adj_val, adj_test, feat_train, feat_val, feat_test, train_true, train_false, val_true, val_false= make_test_train_gpu(
                         original_adj.cpu().detach().numpy(), features,
                         [trainId, validId, testId])
         print('Finish spliting dataset to train and test. ')
@@ -170,10 +170,33 @@ def train_PNModel(dataCenter, features, args, device):
     num_nodes = graph_dgl.number_of_dst_nodes()
     adj_train = torch.tensor(adj_train.todense())  # use sparse man
     
+    
+        
     if (type(feat_train) == np.ndarray):
         feat_train = torch.tensor(feat_train, dtype=torch.float32)
     else:
         feat_train = feat_train
+    
+    
+
+    adj_val = sp.csr_matrix(adj_val)
+    
+    graph_dgl_val = dgl.from_scipy(adj_val)
+
+    # origianl_graph_statistics = GS.compute_graph_statistics(np.array(adj_train.todense()) + np.identity(adj_train.shape[0]))
+    
+    graph_dgl_val.add_edges(graph_dgl_val.nodes(), graph_dgl_val.nodes())  # the library does not add self-loops
+    
+    num_nodes_val = graph_dgl_val.number_of_dst_nodes()
+    adj_val = torch.tensor(adj_val.todense())  # use sparse man
+    
+       
+    if (type(feat_val) == np.ndarray):
+        feat_val = torch.tensor(feat_val, dtype=torch.float32)
+    else:
+        feat_val = feat_ 
+    
+
         
     
     
@@ -209,31 +232,45 @@ def train_PNModel(dataCenter, features, args, device):
     
 
 
-
         reconstructed_adj = torch.sigmoid(reconstructed_adj).detach().numpy()
-        # model.eval()
-        # train_auc, train_acc, train_ap, train_conf = roc_auc_estimator(train_true, train_false,
-        #                                                       reconstructed_adj, original_adj)
+        
+        model.eval()
+        # train_auc, train_acc, train_ap, train_conf = roc_auc_estimator_train(train_true, train_false,
+        #                                                       reconstructed_adj, adj_train)
+    
     
         # if split_the_data_to_train_test == True:
-        #     val_auc, val_acc, val_ap, val_conf = roc_auc_estimator(val_edges, val_edges_false,
-        #                                                     reconstructed_adj, original_adj)
+        #     std_z, m_z, z, reconstructed_adj_val = model(graph_dgl_val, feat_val, is_prior, train=False)
+        #     reconstructed_adj_val = torch.sigmoid(reconstructed_adj_val).detach().numpy()
+        #     val_auc, val_acc, val_ap, val_conf = roc_auc_estimator_train(val_true, val_false,
+        #                                                     reconstructed_adj_val, adj_val)
     
         #     # keep the history to plot
         #     pltr.add_values(epoch, [loss.item(), train_acc,  reconstruction_loss.item(), z_kl, train_auc],
-        #                     [None, val_acc, val_recons_loss.item(),None, val_auc  # , val_ap
+        #                     [None, val_acc, val_recons_loss,None, val_auc  # , val_ap
         #                         ], redraw=False)  # ["Accuracy", "Loss", "AUC", "AP"]
         # else:
         #     # keep the history to plot
         #     pltr.add_values(epoch, [acc, loss.item(), None  # , None
         #                             ],
         #                     [None, None, None  # , None
-        #                      ], redraw=False)  # ["Accuracy", "loss", "AUC", "AP"])
+        #                       ], redraw=False)  # ["Accuracy", "loss", "AUC", "AP"])
     
-        # model.train()
-
-
-
+    
+    
+        # # Ploting the recinstructed Graph
+        # if epoch % visulizer_step == 0:
+        #     # pltr.redraw()
+        #     print("Val conf:", )
+        #     print(val_conf, )
+        #     print("Train Conf:")
+        #     print(train_conf)
+        
+        
+    
+    
+    
+        model.train()
         # backward propagation
         optimizer.zero_grad()
         loss.backward()
