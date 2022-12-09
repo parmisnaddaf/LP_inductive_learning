@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "pn2_main.py", line 15, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+Traceback (most recent call last):
+  File "pn2_main.py", line 15, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'

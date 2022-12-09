@@ -1062,97 +1062,181 @@ class PN_FrameWork(torch.nn.Module):
         self.dropout = torch.nn.Dropout(0)
         self.reset_parameters()
 
-    def forward(self, adj, x, is_prior, train=True):
+    def forward(self, adj, x, targets, is_prior, train=True):
 
         if train:
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)  # link encoder
-            # CVAE approximation 
+            
             generated_adj = self.generator(z)  # link decoder
-            # z, m_z, std_z = self.inference(adj, x)
-        # x_z_0  = np.concatenate((z_0.cpu().detach().numpy(), x), axis=1).astype(np.float32)
-        # x_z_0 = torch.from_numpy(x_z_0)
         else:
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+
+            # use normal distribution for nodes not in evidence
             # mu, sigma = 0, 0.1
-            # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float() # use normal distribution for nodes not in evidence
+            # z_0[self.not_evidence] = torch.from_numpy(np.random.normal(mu, sigma, z_0.shape[1])).float()
             z, m_z, std_z = self.inference(adj, z_0)  # link encoder
 
             generated_adj = self.generator(z)  # link decoder
 
             if is_prior:
 
-                # #if we use Monte Carlo sampling
+                # A0 = self.run_monte(generated_adj, x, adj)
+                # A1 = self.run_importance_sampling(generated_adj, x, adj, targets)
+                #
+                # # get softmax and return
+                # generated_adj = torch.exp(A1) / (torch.exp(A0) + torch.exp(A1))
+
+                # if we use Monte Carlo sampling
                 # print("Monte Carlo")
                 # s = generated_adj
-                # num_it = 100
-                # for i in range (num_i-1):
-                #     z_0 = self.get_z(x, self.latent_dim) # attribute encoder
+                # num_it = 10
+                # for i in range(num_it - 1):
+                #     z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
                 #     z, m_z, std_z = self.inference(adj, z_0)
-                #     z = self.dropout(z)
+                #     # z = self.dropout(z)
                 #     generated_adj = self.generator(z)
-                #     s +=  generated_adj
-                # generated_adj = s/num_it
+                #     s += generated_adj
+                # generated_adj = s / num_it
 
                 # if important sampling
-                print("Importance sampling")
-                start_time = time.time()
-                s = generated_adj
-                num_it = 100
-                for i in range(num_it - 1):
-                    # print(torch.mean(self.mq))
-                    # print(torch.mean(self.sq))
+                # print("Importance sampling")
+                # start_time = time.time()
+                # s = generated_adj
+                # num_it = 10
+                # for i in range(num_it - 1):
+                #     # print(torch.mean(self.mq))
+                #     # print(torch.mean(self.sq))
 
-                    z_s = self.reparameterize(self.mq, self.sq)
+                #     z_s = self.reparameterize(self.mq, self.sq)
 
-                    # get z from prior
-                    z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
-                    z, m_z, std_z = self.inference(adj, z_0)  # link encoder
+                #     # get z from prior
+                #     z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+                #     z, m_z, std_z = self.inference(adj, z_0)  # link encoder
 
-                    # print(torch.mean(m_z))
-                    # print(torch.mean(std_z))
+                #     # print(torch.mean(m_z))
+                #     # print(torch.mean(std_z))
 
-                    prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s)
-                    # recog_pdf = get_pdf(, z_s)
+                #     prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s, targets)
+                #     # recog_pdf = get_pdf(, z_s)
 
-                    # print("pdf prior ", prior_pdf)
-                    # print("pdf recog", recog_pdf)
+                #     # print("pdf prior ", prior_pdf)
+                #     # print("pdf recog", recog_pdf)
 
-                    coefficient = torch.tensor(prior_pdf - recog_pdf)
-                    # print("COEF: ", coefficient)
+                #     coefficient = torch.tensor(prior_pdf - recog_pdf)
+                #     # print("COEF: ", coefficient)
 
-                    # KLD SANITY
-                    kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
-                    # print("kld: ", kld)
-                    # print("kld_eye: ", kld_eye )
-                    # print("eclidean dist", sanity)
+                #     # KLD SANITY
+                #     kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
+                #     # print("kld: ", kld)
+                #     # print("kld_eye: ", kld_eye )
+                #     # print("eclidean dist", sanity)
 
-                    generated_adj = self.generator(z_s)
+                #     generated_adj = self.generator(z_s)
 
-                    # print("generated_adj_org: ", generated_adj)
-                    log_generated_adj = torch.log(torch.sigmoid(generated_adj))
-                    # print("generated_adj_log: ", log_generated_adj)
-                    log_generated_adj_added = torch.add(log_generated_adj, coefficient)
-                    # print("generated_adj_add: ", log_generated_adj_added)
-                    generated_adj_final = torch.exp(log_generated_adj)
-                    # print(len(generated_adj_final[generated_adj_final>0]))
-                    # print("generated_adj_final: ", generated_adj_final)
-                    s += generated_adj_final
-                generated_adj = s / num_it
-                tac = time.perf_counter()
-                print("--- %s seconds ---" % (time.time() - start_time))
+                #     # print("generated_adj_org: ", generated_adj)
+                #     log_generated_adj = torch.log(torch.sigmoid(generated_adj))
+                #     # print("generated_adj_log: ", log_generated_adj)
+                #     log_generated_adj_added = torch.add(log_generated_adj, coefficient)
+                #     # print("generated_adj_add: ", log_generated_adj_added)
+                #     generated_adj_final = torch.exp(log_generated_adj)
+                #     # print(len(generated_adj_final[generated_adj_final>0]))
+                #     # print("generated_adj_final: ", generated_adj_final)
+                #     s += generated_adj_final
+                # generated_adj = s / num_it
+                # # print("--- %s seconds ---" % (time.time() - start_time))
 
-                # #if we use deterministic
-                # generated_adj = self.generator(m_z) # Give the mean
+                #if we use deterministic
+                generated_adj = self.generator(m_z) # Give the mean
 
 
             else:
                 self.mq = m_z
                 self.sq = std_z
 
-        z = self.dropout(z)
+        # z = self.dropout(z)
 
         return std_z, m_z, z, generated_adj
+
+    def run_monte(self, generated_adj, x, adj, targets):
+        # if we use Monte Carlo sampling
+        print("Monte karlo \u2764")
+        
+        
+        # make edge list from the ends of the target nodes
+        targets = np.array(targets)
+        target_node = np.array([targets[-1]] * targets.shape[0]) 
+        target_edges = np.stack((targets, target_node), axis=1)[:-1]
+        
+        
+        s = generated_adj
+        
+        cll = torch.prod(generated_adj[target_edges])
+        num_it = 10
+        for i in range(num_it - 1):
+            z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+            z, m_z, std_z = self.inference(adj, z_0)
+            z = self.dropout(z)
+            generated_adj = self.generator(z)
+            cll += torch.prod(generated_adj[target_edges])
+            s += generated_adj
+            
+            
+        generated_adj = s / num_it
+        cll = cll / num_it
+        print(cll)
+
+        return generated_adj
+
+    def run_importance_sampling(self, generated_adj, x, adj, targets):
+
+        # if important sampling
+        print("Importance sampling")
+        s = generated_adj
+        num_it = 10
+        for i in range(num_it - 1):
+            # print(torch.mean(self.mq))
+            # print(torch.mean(self.sq))
+
+            z_s = self.reparameterize(self.mq, self.sq)
+
+            # get z from prior
+            z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
+            z, m_z, std_z = self.inference(adj, z_0)  # link encoder
+
+            # print(torch.mean(m_z))
+            # print(torch.mean(std_z))
+
+            prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s, targets)
+            # recog_pdf = get_pdf(, z_s)
+
+            # print("pdf prior ", prior_pdf)
+            # print("pdf recog", recog_pdf)
+
+            coefficient = torch.tensor(prior_pdf - recog_pdf)
+            # print("COEF: ", coefficient)
+
+            # KLD SANITY
+            kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
+            # print("kld: ", kld)
+            # print("kld_eye: ", kld_eye )
+            # print("eclidean dist", sanity)
+
+            generated_adj = self.generator(z_s)
+            
+
+            # print("generated_adj_org: ", generated_adj)
+            log_generated_adj = torch.log(torch.sigmoid(generated_adj))
+            # print("generated_adj_log: ", log_generated_adj)
+            log_generated_adj_added = torch.add(log_generated_adj, coefficient)
+            # print("generated_adj_add: ", log_generated_adj_added)
+            generated_adj_final = torch.exp(log_generated_adj)
+            # print(len(generated_adj_final[generated_adj_final>0]))
+            # print("generated_adj_final: ", generated_adj_final)
+            s += generated_adj_final
+        generated_adj = s / num_it
+
+        return generated_adj
 
     def kld_d(self, m0, s0, m1, s1):
 

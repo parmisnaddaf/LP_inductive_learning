@@ -53,6 +53,7 @@ def train_PNModel(dataCenter, features, args, device):
     lr = args.lr
     save_embeddings_to_file = args.save_embeddings_to_file
     is_prior = args.is_prior
+    targets = args.targets
 
     pltr = plotter.Plotter(functions=["loss",  "Accuracy", "Recons Loss", "KL", "AUC"]) 
     synthesis_graphs = {"grid", "community", "lobster", "ego"}
@@ -169,6 +170,7 @@ def train_PNModel(dataCenter, features, args, device):
     
     num_nodes = graph_dgl.number_of_dst_nodes()
     adj_train = torch.tensor(adj_train.todense())  # use sparse man
+   
     
     
         
@@ -223,7 +225,7 @@ def train_PNModel(dataCenter, features, args, device):
         # print(epoch)
         model.train()
         # forward propagation by using all nodes
-        std_z, m_z, z, reconstructed_adj = model(graph_dgl, feat_train, is_prior, train=True)
+        std_z, m_z, z, reconstructed_adj = model(graph_dgl, feat_train, is_prior, targets, train=True)
         # compute loss and accuracy
         z_kl, reconstruction_loss, acc, val_recons_loss = optimizer_VAE_pn(reconstructed_adj,
                                                                        adj_train + sp.eye(adj_train.shape[0]).todense(),

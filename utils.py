@@ -354,23 +354,6 @@ def optimizer_VAE(pred, labels, std_z, mean_z, num_nodes, pos_wight, norm, recon
     return z_kl, lambda_a * posterior_cost, acc, val_poterior_cost, lambda_x * posterior_cost_feat
 
 
-# def roc_auc_estimator(pos_edges, negative_edges, reconstructed_adj, origianl_agjacency):
-#     prediction = []
-#     true_label = []
-#     for edge in pos_edges:
-#         prediction.append(reconstructed_adj[edge[0],edge[1]])
-#         true_label.append(origianl_agjacency[edge[0], edge[1]])
-
-#     for edge in negative_edges:
-#         prediction.append(reconstructed_adj[edge[0], edge[1]])
-#         true_label.append(origianl_agjacency[edge[0], edge[1]])
-
-#     pred = [1 if x>.5 else 0 for x in prediction]
-#     auc = roc_auc_score(y_score= prediction, y_true= true_label)
-#     acc = accuracy_score(y_pred= pred, y_true= true_label, normalize= True)
-#     ap=average_precision_score(y_score= prediction, y_true= true_label)
-#     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
-#     return auc , acc,ap, cof_mtx
 
 def sparse_to_tuple(sparse_mx):
     if not sp.isspmatrix_coo(sparse_mx):
@@ -712,9 +695,10 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
         true_label.append(origianl_agjacency[edge[1], edge[0]])
 
     pred = np.array(prediction)
-    pred[pred > .5] = 1
-    pred[pred < .5] = 0
+    pred[pred > .5] = 1.0
+    pred[pred < .5] = 0.0
     pred = pred.astype(int)
+
 
     precision = precision_score(y_pred=pred, y_true=true_label)
     recall = recall_score(y_pred=pred, y_true=true_label)
@@ -723,10 +707,13 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     ap = average_precision_score(y_score=prediction, y_true=true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
 
-    hr2 = RetrievalHitRate(k=int(0.1 * len(prediction)))
-    HR = hr2(torch.tensor(prediction), torch.tensor(true_label), indexes=torch.tensor([1] * len(prediction))).item()
+    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//2)[-1*len(pred)//2:]
+    HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
+    
+    cll = np.prod(pred[np.array(true_label) == 1])
+    
+    return auc, acc, ap, precision, recall, HR, cll
 
-    return auc, acc, ap, precision, recall, HR
 
 
 def roc_auc_estimator_train(pos_edges, negative_edges, reconstructed_adj, origianl_agjacency):
@@ -1044,8 +1031,8 @@ def get_neighbour_prob(rec_adj, idd, neighbour_list):
     return result
 
 
-def get_metrices(test_edges, test_edges_false, org_adj, re_adj):
-    return roc_auc_estimator(test_edges, test_edges_false, sparse.csr_matrix(torch.sigmoid(re_adj).detach().numpy()),
+def get_metrices(test_edges, org_adj, re_adj):
+    return roc_auc_estimator(test_edges, sparse.csr_matrix(torch.sigmoid(re_adj).detach().numpy()),
                              sparse.csr_matrix(org_adj))
 
 
@@ -1059,11 +1046,11 @@ def get_metrices(test_edges, test_edges_false, org_adj, re_adj):
 # return auc_list, val_acc_list, val_ap_list, precision_list,recall_list, HR_list
 
 
-def run_network(feats, adj, model, is_prior):
+def run_network(feats, adj, model, targets, is_prior):
     adj = sparse.csr_matrix(adj)
     graph_dgl = dgl.from_scipy(adj)
     graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
-    std_z, m_z, z, re_adj = model(graph_dgl, feats, is_prior, train=False)
+    std_z, m_z, z, re_adj = model(graph_dgl, feats, targets, is_prior, train=False)
     return std_z, m_z, z, re_adj
 
 
@@ -1088,29 +1075,31 @@ def run_feature_encoder(x, model):
     return model.get_z(x, args_kdd.num_of_comunities)
 
 
-def get_pdf(mean_p, std_p, mean_q, std_q, z):
+def get_pdf(mean_p, std_p, mean_q, std_q, z, targets):
+    
+    #print("targets: ",targets)
     n = 1
     d = z.shape[1]
     pdf_all_z_manual_p = 0
     pdf_all_z_manual_q = 0
-    #
+
     pdf_all_z_p = 0
     pdf_all_z_q = 0
-    for i in range(z.shape[0]):
+    for i in targets:
         # TORCH
-    #     cov_p = np.diag(std_p.detach().numpy()[i] ** 2)
-    #     dist_p = torch.distributions.multivariate_normal.MultivariateNormal(mean_p[i], torch.tensor(cov_p))
-    #     pdf_all_z_p += dist_p.log_prob(z[i]).detach().numpy()
-    #
-    #     cov_q = np.diag(std_q.detach().numpy()[i] ** 2)
-    #     dist_q = torch.distributions.multivariate_normal.MultivariateNormal(mean_q[i], torch.tensor(cov_q))
-    #     pdf_all_z_q += dist_q.log_prob(z[i]).detach().numpy()
-    # return pdf_all_z_p, pdf_all_z_q
+        cov_p = np.diag(std_p.detach().numpy()[i] ** 2)
+        dist_p = torch.distributions.multivariate_normal.MultivariateNormal(mean_p[i], torch.tensor(cov_p))
+        pdf_all_z_p += dist_p.log_prob(z[i]).detach().numpy()
 
-    # Manual
-    # pdf_all_z_eye_manual += log_pdf(mean[i], torch.ones(z.shape[1]), z[i])
-    pdf_all_z_manual_p += log_pdf(mean_p[i], std_p[i], z[i])
-    pdf_all_z_manual_q += log_pdf(mean_q[i], std_q[i], z[i])
+        cov_q = np.diag(std_q.detach().numpy()[i] ** 2)
+        dist_q = torch.distributions.multivariate_normal.MultivariateNormal(mean_q[i], torch.tensor(cov_q))
+        pdf_all_z_q += dist_q.log_prob(z[i]).detach().numpy()
+    return pdf_all_z_p, pdf_all_z_q
+
+        # Manual
+        # pdf_all_z_eye_manual += log_pdf(mean[i], torch.ones(z.shape[1]), z[i])
+        # pdf_all_z_manual_p += log_pdf(mean_p[i], std_p[i], z[i])
+        # pdf_all_z_manual_q += log_pdf(mean_q[i], std_q[i], z[i])
 
     return pdf_all_z_manual_p, pdf_all_z_manual_q
 

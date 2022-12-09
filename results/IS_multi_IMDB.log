@@ -1,0 +1,231 @@
+Using backend: pytorch
+
+SETING: Namespace(CVAE_architecture='separate', DropOut_rate=0.3, Vis_step=5, batch_norm=True, config='experiments.conf', dataSet='IMDB', decoder_type='ML_SBM', disjoint_transductive_inductive=False, encoder_layers='64', encoder_type='Multi_GCN', epoch_number=100, is_prior=False, lr=0.01, model='KDD', mpath='VGAE_FrameWork_MODEL', negative_sampling_rate=1, num_node=-1, num_of_comunities=128, num_of_relations=1, save_embeddings_to_file=True, seed=123, split_the_data_to_train_test=True, targets=[], use_feature=True)
+Using device 0 GeForce GTX TITAN X
+Finish spliting dataset to train and test. 
+is prior is::::::  False
+Epoch: 001 | Loss: 1.727546 | Reconstruction_loss: 1.604539 | z_kl_loss: 0.123008 | Accuracy: 0.492249
+Epoch: 002 | Loss: 1.176543 | Reconstruction_loss: 1.057488 | z_kl_loss: 0.119054 | Accuracy: 0.488708
+Epoch: 003 | Loss: 0.997905 | Reconstruction_loss: 0.888933 | z_kl_loss: 0.108972 | Accuracy: 0.499027
+Epoch: 004 | Loss: 0.839440 | Reconstruction_loss: 0.739315 | z_kl_loss: 0.100125 | Accuracy: 0.522965
+Epoch: 005 | Loss: 0.755137 | Reconstruction_loss: 0.659349 | z_kl_loss: 0.095788 | Accuracy: 0.569454
+Epoch: 006 | Loss: 0.679618 | Reconstruction_loss: 0.586883 | z_kl_loss: 0.092735 | Accuracy: 0.610524
+Epoch: 007 | Loss: 0.630961 | Reconstruction_loss: 0.541048 | z_kl_loss: 0.089913 | Accuracy: 0.646984
+Epoch: 008 | Loss: 0.579293 | Reconstruction_loss: 0.492708 | z_kl_loss: 0.086585 | Accuracy: 0.696783
+Epoch: 009 | Loss: 0.529918 | Reconstruction_loss: 0.446073 | z_kl_loss: 0.083845 | Accuracy: 0.748684
+Epoch: 010 | Loss: 0.502876 | Reconstruction_loss: 0.421274 | z_kl_loss: 0.081602 | Accuracy: 0.788081
+Epoch: 011 | Loss: 0.453960 | Reconstruction_loss: 0.373085 | z_kl_loss: 0.080874 | Accuracy: 0.804253
+Epoch: 012 | Loss: 0.432780 | Reconstruction_loss: 0.352736 | z_kl_loss: 0.080044 | Accuracy: 0.825248
+Epoch: 013 | Loss: 0.408654 | Reconstruction_loss: 0.329888 | z_kl_loss: 0.078766 | Accuracy: 0.848152
+Epoch: 014 | Loss: 0.384229 | Reconstruction_loss: 0.306834 | z_kl_loss: 0.077395 | Accuracy: 0.861132
+Epoch: 015 | Loss: 0.373999 | Reconstruction_loss: 0.297917 | z_kl_loss: 0.076082 | Accuracy: 0.868523
+Epoch: 016 | Loss: 0.360259 | Reconstruction_loss: 0.286161 | z_kl_loss: 0.074098 | Accuracy: 0.870836
+Epoch: 017 | Loss: 0.348802 | Reconstruction_loss: 0.276762 | z_kl_loss: 0.072040 | Accuracy: 0.872373
+Epoch: 018 | Loss: 0.349501 | Reconstruction_loss: 0.280158 | z_kl_loss: 0.069343 | Accuracy: 0.880781
+Epoch: 019 | Loss: 0.334224 | Reconstruction_loss: 0.267574 | z_kl_loss: 0.066649 | Accuracy: 0.882801
+Epoch: 020 | Loss: 0.329023 | Reconstruction_loss: 0.265748 | z_kl_loss: 0.063275 | Accuracy: 0.887275
+Epoch: 021 | Loss: 0.318298 | Reconstruction_loss: 0.259312 | z_kl_loss: 0.058985 | Accuracy: 0.893236
+Epoch: 022 | Loss: 0.300918 | Reconstruction_loss: 0.245673 | z_kl_loss: 0.055245 | Accuracy: 0.896350
+Epoch: 023 | Loss: 0.305891 | Reconstruction_loss: 0.254704 | z_kl_loss: 0.051187 | Accuracy: 0.895480
+Epoch: 024 | Loss: 0.288408 | Reconstruction_loss: 0.240546 | z_kl_loss: 0.047862 | Accuracy: 0.889224
+Epoch: 025 | Loss: 0.282418 | Reconstruction_loss: 0.237780 | z_kl_loss: 0.044638 | Accuracy: 0.890521
+Epoch: 026 | Loss: 0.277564 | Reconstruction_loss: 0.235643 | z_kl_loss: 0.041921 | Accuracy: 0.894620
+Epoch: 027 | Loss: 0.269007 | Reconstruction_loss: 0.229311 | z_kl_loss: 0.039695 | Accuracy: 0.902174
+Epoch: 028 | Loss: 0.264420 | Reconstruction_loss: 0.226101 | z_kl_loss: 0.038319 | Accuracy: 0.901376
+Epoch: 029 | Loss: 0.258778 | Reconstruction_loss: 0.221494 | z_kl_loss: 0.037284 | Accuracy: 0.898742
+Epoch: 030 | Loss: 0.254373 | Reconstruction_loss: 0.218050 | z_kl_loss: 0.036323 | Accuracy: 0.895519
+Epoch: 031 | Loss: 0.251647 | Reconstruction_loss: 0.216706 | z_kl_loss: 0.034941 | Accuracy: 0.898687
+Epoch: 032 | Loss: 0.247408 | Reconstruction_loss: 0.213887 | z_kl_loss: 0.033521 | Accuracy: 0.904403
+Epoch: 033 | Loss: 0.242859 | Reconstruction_loss: 0.210359 | z_kl_loss: 0.032500 | Accuracy: 0.906685
+Epoch: 034 | Loss: 0.232595 | Reconstruction_loss: 0.200867 | z_kl_loss: 0.031728 | Accuracy: 0.907039
+Epoch: 035 | Loss: 0.233585 | Reconstruction_loss: 0.202412 | z_kl_loss: 0.031172 | Accuracy: 0.906031
+Epoch: 036 | Loss: 0.235985 | Reconstruction_loss: 0.205320 | z_kl_loss: 0.030666 | Accuracy: 0.904456
+Epoch: 037 | Loss: 0.226570 | Reconstruction_loss: 0.196947 | z_kl_loss: 0.029623 | Accuracy: 0.903134
+Epoch: 038 | Loss: 0.230413 | Reconstruction_loss: 0.202342 | z_kl_loss: 0.028071 | Accuracy: 0.903825
+Epoch: 039 | Loss: 0.220194 | Reconstruction_loss: 0.193459 | z_kl_loss: 0.026735 | Accuracy: 0.911001
+Epoch: 040 | Loss: 0.216735 | Reconstruction_loss: 0.191130 | z_kl_loss: 0.025605 | Accuracy: 0.914166
+Epoch: 041 | Loss: 0.219306 | Reconstruction_loss: 0.194403 | z_kl_loss: 0.024903 | Accuracy: 0.911425
+Epoch: 042 | Loss: 0.215771 | Reconstruction_loss: 0.191241 | z_kl_loss: 0.024530 | Accuracy: 0.908060
+Epoch: 043 | Loss: 0.210426 | Reconstruction_loss: 0.186098 | z_kl_loss: 0.024329 | Accuracy: 0.907562
+Epoch: 044 | Loss: 0.216606 | Reconstruction_loss: 0.192242 | z_kl_loss: 0.024363 | Accuracy: 0.912836
+Epoch: 045 | Loss: 0.215132 | Reconstruction_loss: 0.190428 | z_kl_loss: 0.024704 | Accuracy: 0.912584
+Epoch: 046 | Loss: 0.208075 | Reconstruction_loss: 0.183077 | z_kl_loss: 0.024997 | Accuracy: 0.909315
+Epoch: 047 | Loss: 0.206247 | Reconstruction_loss: 0.181248 | z_kl_loss: 0.024999 | Accuracy: 0.911195
+Epoch: 048 | Loss: 0.201716 | Reconstruction_loss: 0.176919 | z_kl_loss: 0.024797 | Accuracy: 0.920596
+Epoch: 049 | Loss: 0.204641 | Reconstruction_loss: 0.180295 | z_kl_loss: 0.024346 | Accuracy: 0.922447
+Epoch: 050 | Loss: 0.197594 | Reconstruction_loss: 0.173321 | z_kl_loss: 0.024273 | Accuracy: 0.915045
+Epoch: 051 | Loss: 0.198562 | Reconstruction_loss: 0.174648 | z_kl_loss: 0.023913 | Accuracy: 0.912039
+Epoch: 052 | Loss: 0.191957 | Reconstruction_loss: 0.168349 | z_kl_loss: 0.023608 | Accuracy: 0.919111
+Epoch: 053 | Loss: 0.197443 | Reconstruction_loss: 0.174070 | z_kl_loss: 0.023373 | Accuracy: 0.923267
+Epoch: 054 | Loss: 0.192795 | Reconstruction_loss: 0.169521 | z_kl_loss: 0.023274 | Accuracy: 0.921621
+Epoch: 055 | Loss: 0.188224 | Reconstruction_loss: 0.164828 | z_kl_loss: 0.023396 | Accuracy: 0.920967
+Epoch: 056 | Loss: 0.191789 | Reconstruction_loss: 0.168274 | z_kl_loss: 0.023516 | Accuracy: 0.925182
+Epoch: 057 | Loss: 0.193880 | Reconstruction_loss: 0.170113 | z_kl_loss: 0.023767 | Accuracy: 0.928137
+Epoch: 058 | Loss: 0.187219 | Reconstruction_loss: 0.162943 | z_kl_loss: 0.024276 | Accuracy: 0.919440
+Epoch: 059 | Loss: 0.187248 | Reconstruction_loss: 0.162746 | z_kl_loss: 0.024502 | Accuracy: 0.916901
+Epoch: 060 | Loss: 0.187935 | Reconstruction_loss: 0.163658 | z_kl_loss: 0.024277 | Accuracy: 0.923032
+Epoch: 061 | Loss: 0.189494 | Reconstruction_loss: 0.165782 | z_kl_loss: 0.023712 | Accuracy: 0.931231
+Epoch: 062 | Loss: 0.189381 | Reconstruction_loss: 0.166136 | z_kl_loss: 0.023245 | Accuracy: 0.930853
+Epoch: 063 | Loss: 0.186712 | Reconstruction_loss: 0.163773 | z_kl_loss: 0.022939 | Accuracy: 0.924352
+Epoch: 064 | Loss: 0.182297 | Reconstruction_loss: 0.159403 | z_kl_loss: 0.022894 | Accuracy: 0.918706
+Epoch: 065 | Loss: 0.185245 | Reconstruction_loss: 0.162484 | z_kl_loss: 0.022762 | Accuracy: 0.922041
+Epoch: 066 | Loss: 0.179152 | Reconstruction_loss: 0.156488 | z_kl_loss: 0.022663 | Accuracy: 0.929226
+Epoch: 067 | Loss: 0.181105 | Reconstruction_loss: 0.158258 | z_kl_loss: 0.022848 | Accuracy: 0.932383
+Epoch: 068 | Loss: 0.179661 | Reconstruction_loss: 0.156558 | z_kl_loss: 0.023103 | Accuracy: 0.930690
+Epoch: 069 | Loss: 0.176321 | Reconstruction_loss: 0.152672 | z_kl_loss: 0.023649 | Accuracy: 0.928970
+Epoch: 070 | Loss: 0.180802 | Reconstruction_loss: 0.156956 | z_kl_loss: 0.023846 | Accuracy: 0.925334
+Epoch: 071 | Loss: 0.178544 | Reconstruction_loss: 0.154584 | z_kl_loss: 0.023960 | Accuracy: 0.924402
+Epoch: 072 | Loss: 0.174404 | Reconstruction_loss: 0.150684 | z_kl_loss: 0.023720 | Accuracy: 0.928990
+Epoch: 073 | Loss: 0.182172 | Reconstruction_loss: 0.158852 | z_kl_loss: 0.023320 | Accuracy: 0.934333
+Epoch: 074 | Loss: 0.172831 | Reconstruction_loss: 0.149832 | z_kl_loss: 0.023000 | Accuracy: 0.932300
+Epoch: 075 | Loss: 0.171790 | Reconstruction_loss: 0.149007 | z_kl_loss: 0.022782 | Accuracy: 0.932301
+Epoch: 076 | Loss: 0.177192 | Reconstruction_loss: 0.154600 | z_kl_loss: 0.022592 | Accuracy: 0.930699
+Epoch: 077 | Loss: 0.169609 | Reconstruction_loss: 0.146863 | z_kl_loss: 0.022746 | Accuracy: 0.927367
+Epoch: 078 | Loss: 0.170658 | Reconstruction_loss: 0.147849 | z_kl_loss: 0.022809 | Accuracy: 0.929977
+Epoch: 079 | Loss: 0.170010 | Reconstruction_loss: 0.147035 | z_kl_loss: 0.022975 | Accuracy: 0.933414
+Epoch: 080 | Loss: 0.168592 | Reconstruction_loss: 0.145650 | z_kl_loss: 0.022943 | Accuracy: 0.931422
+Epoch: 081 | Loss: 0.169134 | Reconstruction_loss: 0.146197 | z_kl_loss: 0.022936 | Accuracy: 0.934709
+Epoch: 082 | Loss: 0.171473 | Reconstruction_loss: 0.148579 | z_kl_loss: 0.022894 | Accuracy: 0.938494
+Epoch: 083 | Loss: 0.168799 | Reconstruction_loss: 0.145734 | z_kl_loss: 0.023065 | Accuracy: 0.930721
+Epoch: 084 | Loss: 0.168364 | Reconstruction_loss: 0.145114 | z_kl_loss: 0.023250 | Accuracy: 0.928827
+Epoch: 085 | Loss: 0.163766 | Reconstruction_loss: 0.140685 | z_kl_loss: 0.023081 | Accuracy: 0.933986
+Epoch: 086 | Loss: 0.168163 | Reconstruction_loss: 0.145191 | z_kl_loss: 0.022972 | Accuracy: 0.936998
+Epoch: 087 | Loss: 0.170259 | Reconstruction_loss: 0.147439 | z_kl_loss: 0.022820 | Accuracy: 0.933959
+Epoch: 088 | Loss: 0.166097 | Reconstruction_loss: 0.143321 | z_kl_loss: 0.022777 | Accuracy: 0.930870
+Epoch: 089 | Loss: 0.160748 | Reconstruction_loss: 0.137830 | z_kl_loss: 0.022918 | Accuracy: 0.936719
+Epoch: 090 | Loss: 0.166507 | Reconstruction_loss: 0.143575 | z_kl_loss: 0.022932 | Accuracy: 0.938149
+Epoch: 091 | Loss: 0.167330 | Reconstruction_loss: 0.144357 | z_kl_loss: 0.022974 | Accuracy: 0.930037
+Epoch: 092 | Loss: 0.164288 | Reconstruction_loss: 0.141356 | z_kl_loss: 0.022931 | Accuracy: 0.934573
+Epoch: 093 | Loss: 0.164632 | Reconstruction_loss: 0.141946 | z_kl_loss: 0.022686 | Accuracy: 0.942221
+Epoch: 094 | Loss: 0.163638 | Reconstruction_loss: 0.140907 | z_kl_loss: 0.022730 | Accuracy: 0.933111
+Epoch: 095 | Loss: 0.160968 | Reconstruction_loss: 0.138047 | z_kl_loss: 0.022921 | Accuracy: 0.930333
+Epoch: 096 | Loss: 0.158086 | Reconstruction_loss: 0.135126 | z_kl_loss: 0.022960 | Accuracy: 0.938460
+Epoch: 097 | Loss: 0.161267 | Reconstruction_loss: 0.138435 | z_kl_loss: 0.022832 | Accuracy: 0.942388
+Epoch: 098 | Loss: 0.160480 | Reconstruction_loss: 0.137574 | z_kl_loss: 0.022906 | Accuracy: 0.934451
+Epoch: 099 | Loss: 0.157335 | Reconstruction_loss: 0.134450 | z_kl_loss: 0.022884 | Accuracy: 0.933653
+Epoch: 100 | Loss: 0.161264 | Reconstruction_loss: 0.138452 | z_kl_loss: 0.022812 | Accuracy: 0.944839
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+Importance sampling
+Importance sampling
+Importance sampling
+/localhome/pnaddaf/anaconda3/envs/env/lib/python3.7/site-packages/sklearn/metrics/_classification.py:1318: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, msg_start, len(result))
+Importance sampling
+multi link
+auc:  0.893449359010511
+acc 0.8510021877667352
+ap:  0.912728158693894
+precision 0.8472921377046377
+recall 0.763644680630672
+HR 1

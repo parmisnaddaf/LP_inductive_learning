@@ -16,9 +16,9 @@ class DataCenter(object):
         #super(DataCenter, self).__init__()
         super().__init__()
         self.config = config
-        self.test_split = 0.2
-        self.val_split = 0.1
-        
+        self.test_split = 0.3
+        self.val_split = 0.0
+
         
     def _load_Cora(self, model_name):
         dataSet='cora'
@@ -519,7 +519,7 @@ class DataCenter(object):
             
 
     def _split_data(self, num_nodes, test_split = 0.2, val_split = 0.1):
-        np.random.seed(1)
+        np.random.seed(123)
         rand_indices = np.random.permutation(num_nodes)
         
         test_size = int(num_nodes * test_split)
