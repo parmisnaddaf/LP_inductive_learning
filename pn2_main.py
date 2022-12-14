@@ -16,6 +16,7 @@ import torch
 import torch.nn.functional as F
 import pyhocon
 import dgl
+import csv
 
 from scipy import sparse
 from dgl.nn.pytorch import GraphConv as GraphConv
@@ -39,7 +40,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='cora')
+parser.add_argument('--dataSet', type=str, default='IMDB')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -73,9 +74,17 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('-disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
+parser.add_argument('-sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method")
+parser.add_argument('-method', dest="method", default="multi", help="This var shows method")
 
+
+save_recons_adj_name = ""
 args_kdd = parser.parse_args()
 disjoint_transductive_inductive = args_kdd.disjoint_transductive_inductive
+if disjoint_transductive_inductive:
+    save_recons_adj_name = save_recons_adj_name + args_kdd.sampling_method + "_fully_"
+else:
+    save_recons_adj_name = save_recons_adj_name + args_kdd.sampling_method + "_semi_"
 
 print("")
 print("SETING: " + str(args_kdd))
@@ -119,6 +128,7 @@ elif ds == 'IMDB' or ds == 'ACM' or ds == 'DBLP':
     features_sage = features_kdd
 
 adj_list = sparse.csr_matrix(getattr(dataCenter_kdd, ds + '_adj_lists'))
+
 
 # %%  train inductive_pn
 inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd,
@@ -168,9 +178,26 @@ features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats'))
 org_adj = adj_list.toarray()
 
 prior_only = False
-single_link = False
-multi_link = True
-multi_single_link_bl = False
+method = args_kdd.method
+if method=='multi':
+    single_link = False
+    multi_link = True
+    multi_single_link_bl = False
+elif method == 'single':    
+    single_link = True
+    multi_link = False
+    multi_single_link_bl = False
+else:
+    single_link = False
+    multi_link = False
+    multi_single_link_bl = True
+
+if multi_link:
+    save_recons_adj_name = save_recons_adj_name + 'multi_'+ds
+elif single_link:
+    save_recons_adj_name = save_recons_adj_name + 'single_'+ds
+else:
+    save_recons_adj_name = save_recons_adj_name + 'multi_link_'+ds
 
 pred_single_link = []
 true_single_link = []
@@ -180,6 +207,7 @@ pred_multi_link = []
 true_multi_link = []
 
 targets = []
+sampling_method = args_kdd.sampling_method
 
 if disjoint_transductive_inductive:
     res = org_adj.nonzero()
@@ -190,7 +218,7 @@ if disjoint_transductive_inductive:
     org_adj[i_list, j_list] = 0  # set all the in between edges to 0
 
 # run recognition separately
-std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets,
+std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets, sampling_method,
                                                             is_prior=False)
 re_adj_recog_sig = torch.sigmoid(re_adj_recog)
 # run prior network separately
@@ -202,6 +230,11 @@ sample_list = random.sample(range(0, len(idd_list)), 100)
 false_multi_links_list = []
 
 for i in sample_list:
+    save_recons_adj_name_i = save_recons_adj_name + '_' + str(i)
+    if sampling_method == 'monte':
+        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+            writer = csv.writer(f)
+            writer.writerow([save_recons_adj_name_i])
     targets = []
     idd = idd_list[i]
     neighbour_id = neighbour_list[i]
@@ -217,8 +250,7 @@ for i in sample_list:
         targets.append(neighbour_id)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets,
-                                                                    is_prior=True)
+                                                                    targets, sampling_method,  is_prior=True)
         if prior_only:
             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
                              idd, neighbour_id).detach().numpy()
@@ -229,6 +261,7 @@ for i in sample_list:
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
         pred_single_link.append(re_adj_prior_sig[idd, neighbour_id].tolist())
         true_single_link.append(org_adj[idd, neighbour_id].tolist())
+        torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name+'/'+save_recons_adj_name_i+'.pt')
 
     if multi_link:
         adj_list_copy = copy.deepcopy(org_adj)
@@ -248,7 +281,7 @@ for i in sample_list:
         targets.append(idd)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets, is_prior=True)
+                                                                    targets, sampling_method, is_prior=True)
 
         if prior_only:
             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
@@ -271,6 +304,12 @@ for i in sample_list:
         recall_list_multi.append(recall)
         HR_list_multi.append(HR)
         CLL_list_multi.append(CLL)
+        with open('./results_csv/results.csv', 'a', newline="\n") as f:
+            writer = csv.writer(f)
+            writer.writerow([save_recons_adj_name_i])
+            writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
+
+        torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name_i+'.pt')
 
         # neighbour_prob_multi_link_list.append(get_neighbour_prob(re_adj_prior, idd, org_adj[idd].nonzero()[
         #     0]).item())  # this function calculates the prob of all positive edges around idd node
@@ -284,7 +323,7 @@ for i in sample_list:
                                                                             np.where(adj_list_copy[idd].nonzero()[
                                                                                          0] == nn)))
             std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets,
+                                                                        targets, sampling_method,
                                                                         is_prior=False)
 
             adj_list_copy[idd, nn] = 0  # find a test edge and set it to 0
@@ -293,7 +332,7 @@ for i in sample_list:
             targets.append(idd)
             targets.append(nn)
             std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets, is_prior=True)
+                                                                        targets, sampling_method, is_prior=True)
 
             if prior_only:
                 CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(),
@@ -309,7 +348,7 @@ for i in sample_list:
 
         # Get false edges
         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets,
-                                                                    is_prior=False)
+                                                                     sampling_method, is_prior=False)
         re_adj_recog_sig = torch.sigmoid(re_adj_recog)
         res = np.argwhere(org_adj[idd] == 0)
         np.random.shuffle(res)
@@ -326,6 +365,8 @@ for i in sample_list:
         recall_list_multi_single.append(recall)
         HR_list_multi_single.append(HR)
         CLL_list_multi.append(CLL)
+        
+
 
 if single_link:
     false_count = len(pred_single_link)
@@ -366,6 +407,11 @@ if single_link:
     recall_list_single.append(recall)
     HR_list_single.append(HR)
     CLL_list_single.append(CLL)
+    
+
+
+        
+    
 
 # only use for A0, A1
 # if multi_link:
@@ -408,7 +454,10 @@ if single_link:
 #     HR_list_multi.append(HR)
 
 # Print results
-
+with open('./results_csv/results.csv', 'a', newline="\n") as f:
+    writer = csv.writer(f)
+    writer.writerow([save_recons_adj_name])
+    writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
 
 if multi_link:
     auc_mean_multi = statistics.mean(auc_list_multi)
@@ -451,8 +500,8 @@ if single_link:
     val_ap_mean_single = statistics.mean(val_ap_list_single)
     precision_mean_single = statistics.mean(precision_list_single)
     recall_mean_single = statistics.mean(recall_list_single)
-    HR_mean_signle = statistics.mean(HR_list_single)
-    CLL_mean_signle = statistics.mean(CLL_list_single)
+    HR_mean_single = statistics.mean(HR_list_single)
+    CLL_mean_single = statistics.mean(CLL_list_single)
 
     print("single link")
     print("auc: ", auc_mean_single)
@@ -460,7 +509,7 @@ if single_link:
     print("ap: ", val_ap_mean_single)
     print("precision", precision_mean_single)
     print("recall", recall_mean_single)
-    print("HR", HR_mean_signle)
+    print("HR", HR_mean_single)
     print("CLL", CLL_mean_single)
 
 # print("CLL single",statistics.mean(neigbour_prob_single_list))

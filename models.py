@@ -9,6 +9,7 @@ from dgl.nn.pytorch import GraphConv as GraphConv
 from torch.autograd import Variable
 from torch.nn import init
 import time
+import csv
 
 import numpy as np
 from scipy.stats import multivariate_normal
@@ -1062,7 +1063,7 @@ class PN_FrameWork(torch.nn.Module):
         self.dropout = torch.nn.Dropout(0)
         self.reset_parameters()
 
-    def forward(self, adj, x, targets, is_prior, train=True):
+    def forward(self, adj, x, targets, sampling_method, is_prior, train=True):
 
         if train:
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
@@ -1147,7 +1148,14 @@ class PN_FrameWork(torch.nn.Module):
                 # # print("--- %s seconds ---" % (time.time() - start_time))
 
                 #if we use deterministic
-                generated_adj = self.generator(m_z) # Give the mean
+                if sampling_method=='monte':
+                    generated_adj = self.run_monte(generated_adj, x, adj, targets)
+                    
+                elif sampling_method == 'importance_sampling':
+                    generated_adj = self.run_importance_sampling(generated_adj, x, adj, targets)
+                    
+                else:
+                    generated_adj = self.generator(m_z) # Give the mean
 
 
             else:
@@ -1160,7 +1168,7 @@ class PN_FrameWork(torch.nn.Module):
 
     def run_monte(self, generated_adj, x, adj, targets):
         # if we use Monte Carlo sampling
-        print("Monte karlo \u2764")
+        #print("Monte karlo \u2764")
         
         
         # make edge list from the ends of the target nodes
@@ -1168,23 +1176,36 @@ class PN_FrameWork(torch.nn.Module):
         target_node = np.array([targets[-1]] * targets.shape[0]) 
         target_edges = np.stack((targets, target_node), axis=1)[:-1]
         
-        
         s = generated_adj
         
-        cll = torch.prod(generated_adj[target_edges])
+        generated_adj_sig = torch.sigmoid(generated_adj)
+        cll = torch.exp(torch.sum(torch.log(generated_adj_sig[np.transpose(target_edges)])))
+        sum_cll = cll
+        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+            writer = csv.writer(f)
+            writer.writerow([cll.item()])
         num_it = 10
         for i in range(num_it - 1):
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)
             z = self.dropout(z)
             generated_adj = self.generator(z)
-            cll += torch.prod(generated_adj[target_edges])
+            generated_adj_sig = torch.sigmoid(generated_adj)
+            cll = torch.exp(torch.sum(torch.log(generated_adj_sig[np.transpose(target_edges)])))
+            sum_cll += cll
+            with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+                writer = csv.writer(f)
+                writer.writerow([cll.item()])
             s += generated_adj
             
             
         generated_adj = s / num_it
-        cll = cll / num_it
-        print(cll)
+        avg_cll = sum_cll/num_it
+        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+            writer = csv.writer(f)
+            writer.writerow(['average:',avg_cll.item()])
+        #cll = cll / num_it
+        #print(cll)
 
         return generated_adj
 

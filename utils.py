@@ -710,7 +710,8 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//2)[-1*len(pred)//2:]
     HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
     
-    cll = np.prod(pred[np.array(true_label) == 1])
+    pred = np.array(prediction)
+    cll = np.sum(np.log(pred[np.array(true_label) == 1]))
     
     return auc, acc, ap, precision, recall, HR, cll
 
@@ -756,13 +757,13 @@ def roc_auc_single(prediction, true_label):
     ap = average_precision_score(y_score=prediction, y_true=true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
 
-    hr2 = RetrievalHitRate(k=int(0.1 * len(prediction)))
-    HR = hr2(torch.tensor(prediction), torch.tensor(true_label), indexes=torch.tensor([1] * len(prediction))).item()
-
-    hr2 = RetrievalHitRate(k=int(0.1 * len(prediction)))
-    HR = hr2(torch.tensor(prediction), torch.tensor(true_label), indexes=torch.tensor([1] * len(prediction))).item()
-
-    return auc, acc, ap, precision, recall, HR
+    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//2)[-1*len(pred)//2:]
+    HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
+    
+    pred = np.array(prediction)
+    cll = np.mean(np.log(pred))
+    
+    return auc, acc, ap, precision, recall, HR, cll
 
 
 # def mask_test_edges(adj, testId, trainId):
@@ -1046,11 +1047,11 @@ def get_metrices(test_edges, org_adj, re_adj):
 # return auc_list, val_acc_list, val_ap_list, precision_list,recall_list, HR_list
 
 
-def run_network(feats, adj, model, targets, is_prior):
+def run_network(feats, adj, model, targets, sampling_method, is_prior):
     adj = sparse.csr_matrix(adj)
     graph_dgl = dgl.from_scipy(adj)
     graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops  
-    std_z, m_z, z, re_adj = model(graph_dgl, feats, targets, is_prior, train=False)
+    std_z, m_z, z, re_adj = model(graph_dgl, feats, targets, sampling_method, is_prior, train=False)
     return std_z, m_z, z, re_adj
 
 
