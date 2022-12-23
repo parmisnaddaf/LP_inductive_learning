@@ -31,6 +31,7 @@ import pn2_helper as helper
 import classification
 import statistics
 
+
 # %%  arg setup
 
 ##################################################################
@@ -40,7 +41,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='IMDB')
+parser.add_argument('--dataSet', type=str, default='ACM')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -74,8 +75,8 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('-disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('-sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method")
-parser.add_argument('-method', dest="method", default="multi", help="This var shows method")
+parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling,  ")
+parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
 
 
 save_recons_adj_name = ""
@@ -113,13 +114,13 @@ config = pyhocon.ConfigFactory.parse_file(args_kdd.config)
 ds = args_kdd.dataSet
 if ds == 'cora':
     dataCenter_sage = DataCenter(config)
-    dataCenter_sage.load_dataSet(ds, "graphSage")
+    dataCenter_sage.load_dataSet(ds, "KDD")
     features_sage = torch.FloatTensor(getattr(dataCenter_sage, ds + '_feats')).to(device)
 
     dataCenter_kdd = DataCenter(config)
     dataCenter_kdd.load_dataSet(ds, "KDD")
     features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats')).to(device)
-elif ds == 'IMDB' or ds == 'ACM' or ds == 'DBLP':
+elif ds == 'IMDB' or ds == 'ACM' or ds == 'DBLP' or ds == 'citeseer' or 'ppi':
     dataCenter_kdd = DataCenter(config)
     dataCenter_kdd.load_dataSet(ds, "KDD")
     features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats')).to(device)
@@ -199,6 +200,8 @@ elif single_link:
 else:
     save_recons_adj_name = save_recons_adj_name + 'multi_link_'+ds
 
+print(save_recons_adj_name)
+
 pred_single_link = []
 true_single_link = []
 pred_multi_single_link = []
@@ -229,12 +232,16 @@ neighbour_list = res[1][index]
 sample_list = random.sample(range(0, len(idd_list)), 100)
 false_multi_links_list = []
 
+with open ('./results_csv/results_CLL.csv','w') as f:
+    wtr = csv.writer(f)
+    wtr.writerow(['','q'])
+
 for i in sample_list:
     save_recons_adj_name_i = save_recons_adj_name + '_' + str(i)
-    if sampling_method == 'monte':
-        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
-            writer = csv.writer(f)
-            writer.writerow([save_recons_adj_name_i])
+    #if sampling_method == 'monte':
+        # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([save_recons_adj_name_i])
     targets = []
     idd = idd_list[i]
     neighbour_id = neighbour_list[i]
@@ -261,7 +268,7 @@ for i in sample_list:
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
         pred_single_link.append(re_adj_prior_sig[idd, neighbour_id].tolist())
         true_single_link.append(org_adj[idd, neighbour_id].tolist())
-        torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name+'/'+save_recons_adj_name_i+'.pt')
+        #torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name+'/'+save_recons_adj_name_i+'.pt')
 
     if multi_link:
         adj_list_copy = copy.deepcopy(org_adj)
@@ -277,7 +284,7 @@ for i in sample_list:
         target_list.extend([[idd, i] for i in list(false_multi_link)])
 
         targets = list(true_multi_links[0])
-        # targets.extend(list(false_multi_link)) ################################ add back for importance sampling
+        targets.extend(list(false_multi_link)) ################################ add back for importance sampling
         targets.append(idd)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
@@ -303,13 +310,13 @@ for i in sample_list:
         precision_list_multi.append(precision)
         recall_list_multi.append(recall)
         HR_list_multi.append(HR)
-        CLL_list_multi.append(CLL)
-        with open('./results_csv/results.csv', 'a', newline="\n") as f:
-            writer = csv.writer(f)
-            writer.writerow([save_recons_adj_name_i])
-            writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
+        CLL_list_multi = CLL
+        # with open('./results_csv/results.csv', 'a', newline="\n") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([save_recons_adj_name_i])
+        #     writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
 
-        torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name_i+'.pt')
+        #torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name_i+'.pt')
 
         # neighbour_prob_multi_link_list.append(get_neighbour_prob(re_adj_prior, idd, org_adj[idd].nonzero()[
         #     0]).item())  # this function calculates the prob of all positive edges around idd node
@@ -454,10 +461,7 @@ if single_link:
 #     HR_list_multi.append(HR)
 
 # Print results
-with open('./results_csv/results.csv', 'a', newline="\n") as f:
-    writer = csv.writer(f)
-    writer.writerow([save_recons_adj_name])
-    writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
+
 
 if multi_link:
     auc_mean_multi = statistics.mean(auc_list_multi)
@@ -467,6 +471,11 @@ if multi_link:
     recall_mean_multi = statistics.mean(recall_list_multi)
     HR_mean_multi = statistics.mean(HR_list_multi)
     CLL_mean_multi = statistics.mean(CLL_list_multi)
+    
+    with open('./results_csv/results.csv', 'a', newline="\n") as f:
+        writer = csv.writer(f)
+        writer.writerow([save_recons_adj_name,"","","","","",""])
+        writer.writerow([auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi])
 
     print("multi link")
     print("auc: ", auc_mean_multi)
@@ -484,6 +493,7 @@ if multi_single_link_bl:
     precision_mean_multi_single = statistics.mean(precision_list_multi_single)
     recall_mean_multi_single = statistics.mean(recall_list_multi_single)
     HR_mean_multi_single = statistics.mean(HR_list_multi_single)
+    CLL_mean_multi_single = np.mean(CLL_list_multi_single)
 
     print("multi link")
     print("auc: ", auc_mean_multi_single)
@@ -501,7 +511,14 @@ if single_link:
     precision_mean_single = statistics.mean(precision_list_single)
     recall_mean_single = statistics.mean(recall_list_single)
     HR_mean_single = statistics.mean(HR_list_single)
-    CLL_mean_single = statistics.mean(CLL_list_single)
+    CLL_mean_single = np.mean(CLL_list_single)
+    
+    
+    with open('./results_csv/results.csv', 'a', newline="\n") as f:
+        writer = csv.writer(f)
+        writer.writerow([save_recons_adj_name,"","","","","",""])
+        writer.writerow([auc_mean_single,val_acc_mean_single,val_ap_mean_single,precision_mean_single,recall_mean_single,HR_mean_single,CLL_mean_single])
+
 
     print("single link")
     print("auc: ", auc_mean_single)

@@ -73,7 +73,9 @@ def train_PNModel(dataCenter, features, args, device):
     if ds == 'IMDB' or ds == 'ACM' or ds == 'DBLP':
         edge_labels= torch.FloatTensor(getattr(dataCenter, ds+'_edge_labels')).to(device)
     circles = None
-
+    
+    
+   
     
     # shuffling the data, and selecting a subset of it
     if subgraph_size == -1:
@@ -149,13 +151,23 @@ def train_PNModel(dataCenter, features, args, device):
         features = torch.eye(features.shape[0])
         features = sp.csr_matrix(features)
     
+    
+    
     if split_the_data_to_train_test == True:
         trainId = getattr(dataCenter, ds + '_train')
         validId = getattr(dataCenter, ds + '_val')
         testId = getattr(dataCenter, ds + '_test')
-        adj_train , adj_val, adj_test, feat_train, feat_val, feat_test, train_true, train_false, val_true, val_false= make_test_train_gpu(
-                        original_adj.cpu().detach().numpy(), features,
-                        [trainId, validId, testId])
+        print("WE BE HERE")
+        adj_train =  original_adj.cpu().detach().numpy()[trainId, :][:, trainId]
+        
+        feat_np = features.cpu().data.numpy()
+        feat_train = feat_np[trainId, :]
+        
+        
+        
+        # adj_train , adj_val, adj_test, feat_train, feat_val, feat_test, train_true, train_false, val_true, val_false= make_test_train_gpu(
+        #                 original_adj.cpu().detach().numpy(), features,
+        #                 [trainId, validId, testId])
         print('Finish spliting dataset to train and test. ')
     
     
@@ -181,22 +193,22 @@ def train_PNModel(dataCenter, features, args, device):
     
     
 
-    adj_val = sp.csr_matrix(adj_val)
+    # adj_val = sp.csr_matrix(adj_val)
     
-    graph_dgl_val = dgl.from_scipy(adj_val)
+    # graph_dgl_val = dgl.from_scipy(adj_val)
 
     # origianl_graph_statistics = GS.compute_graph_statistics(np.array(adj_train.todense()) + np.identity(adj_train.shape[0]))
     
-    graph_dgl_val.add_edges(graph_dgl_val.nodes(), graph_dgl_val.nodes())  # the library does not add self-loops
+    # graph_dgl_val.add_edges(graph_dgl_val.nodes(), graph_dgl_val.nodes())  # the library does not add self-loops
     
-    num_nodes_val = graph_dgl_val.number_of_dst_nodes()
-    adj_val = torch.tensor(adj_val.todense())  # use sparse man
+    # num_nodes_val = graph_dgl_val.number_of_dst_nodes()
+    # adj_val = torch.tensor(adj_val.todense())  # use sparse man
     
        
-    if (type(feat_val) == np.ndarray):
-        feat_val = torch.tensor(feat_val, dtype=torch.float32)
-    else:
-        feat_val = feat_ 
+    # if (type(feat_val) == np.ndarray):
+    #     feat_val = torch.tensor(feat_val, dtype=torch.float32)
+    # else:
+    #     feat_val = feat_ 
     
 
         

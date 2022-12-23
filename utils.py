@@ -4,6 +4,7 @@ import torch
 import random
 import math
 
+import csv
 from sklearn.utils import shuffle
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix, average_precision_score, recall_score, \
@@ -711,9 +712,16 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
     
     pred = np.array(prediction)
-    cll = np.sum(np.log(pred[np.array(true_label) == 1]))
     
+    q_multi = []
+    with open('./results_csv/results_CLL.csv', newline='') as f:
+        reader = csv.DictReader(f)
+        for q in reader:
+            q_multi.append(float(q['q'])
+)            
+    cll = np.log(np.array(q_multi))
     return auc, acc, ap, precision, recall, HR, cll
+
 
 
 
@@ -761,7 +769,7 @@ def roc_auc_single(prediction, true_label):
     HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
     
     pred = np.array(prediction)
-    cll = np.mean(np.log(pred))
+    cll = np.log((np.concatenate((pred[np.array(true_label) == 1], 1-pred[np.array(true_label) == 0]))))
     
     return auc, acc, ap, precision, recall, HR, cll
 
