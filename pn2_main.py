@@ -73,7 +73,7 @@ parser.add_argument('-CVAE_architecture', dest="CVAE_architecture", default='sep
                     help="the possible values are sequential, separate, and transfer")
 parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag is used for sampling methods")
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
-parser.add_argument('-disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
+parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
 parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling,  ")
 parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
