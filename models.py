@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils import *
 from dgl.nn.pytorch import GraphConv as GraphConv
+from dgl.nn.pytorch import GATConv as GATConv
 from torch.autograd import Variable
 from torch.nn import init
 import time
@@ -497,6 +498,52 @@ class multi_layer_GCN(torch.nn.Module):
     def reparameterize(self, mean, std):
         eps = torch.randn_like(std)
         return eps.mul(std).add(mean)
+
+
+
+
+
+class multi_layer_GAT(torch.nn.Module):
+    def __init__(self, in_feature, latent_dim=32, layers=[64]):
+        """
+        :param in_feature: the size of input feature; X.shape()[1]
+        :param latent_dim: the dimention of each embedded node; |z| or len(z)
+        :param layers: a list in which each element determine the size of corresponding GCNN Layer.
+        """
+        super(multi_layer_GAT, self).__init__()
+        layers = [in_feature] + layers
+        self.num_head = 4
+        latent_dim =int(latent_dim/(4**2))
+        
+        if len(layers) < 1: raise Exception("sorry, you need at least two layer")
+        self.ConvLayers = torch.nn.ModuleList(
+            GATConv(layers[i], layers[i + 1], activation=None, bias=False, num_heads=self.num_head) for i in
+            range(len(layers) - 1))
+
+        self.q_z_mean = GATConv(layers[-1], latent_dim, activation=None, bias=False, num_heads=self.num_head)
+
+        self.q_z_std = GATConv(layers[-1], latent_dim, activation=None, bias=False, num_heads=self.num_head )
+
+    def forward(self, adj, x):
+        dropout = torch.nn.Dropout(0)
+        for conv_layer in self.ConvLayers:
+            x = torch.tanh(conv_layer(adj, x))
+            x = dropout(x)
+
+        m_q_z = self.q_z_mean(adj, x)
+        std_q_z = torch.relu(self.q_z_std(adj, x)) + .0001
+        
+        m_q_z_flatten = torch.flatten(m_q_z, start_dim=1)
+        std_q_z_flatten = torch.flatten(std_q_z, start_dim=1)
+ 
+
+        z = self.reparameterize(m_q_z_flatten, std_q_z_flatten)
+        return z, m_q_z_flatten, std_q_z_flatten
+
+    def reparameterize(self, mean, std):
+        eps = torch.randn_like(std)
+        return eps.mul(std).add(mean)
+
 
 
 from utils import *
@@ -1198,7 +1245,7 @@ class PN_FrameWork(torch.nn.Module):
         # with open('./results_csv/results_CLL.csv', 'w', newline="\n") as f:
         #     writer = csv.writer(f)
         #     writer.writerow([cll.item()])
-        num_it = 500
+        num_it = 50
         for i in range(num_it - 1):
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)

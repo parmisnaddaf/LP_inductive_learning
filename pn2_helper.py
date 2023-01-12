@@ -103,6 +103,10 @@ def train_PNModel(dataCenter, features, args, device):
     if encoder == "Multi_GCN":
         encoder_model = multi_layer_GCN(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
         # encoder_model = multi_layer_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
+
+    elif encoder == "Multi_GAT":
+        encoder_model = multi_layer_GAT(num_of_comunities , latent_dim=num_of_comunities, layers=encoder_layers)
+
     elif encoder == "mixture_of_GCNs":
         encoder_model = mixture_of_GCNs(in_feature=features.shape[1], num_relation=num_of_relations,
                                         latent_dim=num_of_comunities, layers=encoder_layers, DropOut_rate=DropOut_rate)
@@ -157,7 +161,6 @@ def train_PNModel(dataCenter, features, args, device):
         trainId = getattr(dataCenter, ds + '_train')
         validId = getattr(dataCenter, ds + '_val')
         testId = getattr(dataCenter, ds + '_test')
-        print("WE BE HERE")
         adj_train =  original_adj.cpu().detach().numpy()[trainId, :][:, trainId]
         
         feat_np = features.cpu().data.numpy()
@@ -231,8 +234,7 @@ def train_PNModel(dataCenter, features, args, device):
     # pos_wight = torch.tensor(1)
     norm = torch.true_divide(adj_train.shape[0] * adj_train.shape[0],
                              ((adj_train.shape[0] * adj_train.shape[0] - torch.sum(adj_train)) * 2))
-    
-    print("is prior is:::::: ", is_prior)
+
     for epoch in range(epoch_number):
         # print(epoch)
         model.train()

@@ -51,6 +51,23 @@ class DataCenter(object):
         
     def load_dataSet(self, dataSet='cora', model_name= 'KDD'):
         if model_name == "KDD":
+            if dataSet == 'photos' or dataSet == 'computers':
+                labels = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/labels.npy")
+                features= np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/features.npy")
+                adj = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/adj.npy")
+                
+                test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
+    
+                setattr(self, dataSet+'_test', test_indexs)
+                setattr(self, dataSet+'_val', val_indexs)
+                setattr(self, dataSet+'_train', train_indexs)
+    
+                setattr(self, dataSet+'_feats', features)
+                setattr(self, dataSet+'_labels', labels)
+                setattr(self, dataSet+'_adj_lists', adj)
+            
+            
+            
             if dataSet == 'citeseer':
                 names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
                 objects = []
@@ -91,9 +108,6 @@ class DataCenter(object):
                 setattr(self, dataSet+'_labels', labels)
                 setattr(self, dataSet+'_adj_lists', adj.toarray().astype(np.float32))
                 
-                np.save("citeseer_labels.npy", labels)
-                np.save("citeseer_adj.npy",  adj.toarray().astype(np.float32))
-                np.save("citeseer_x.npy", features.toarray() )
             
             if dataSet == 'ppi':
                 PPI_PATH = '/local-scratch/parmis/inductive_learning/inductive_learning/ppi'
@@ -407,24 +421,4 @@ class DataCenter(object):
         return test_indexs, val_indexs, train_indexs
 
 
-"""
-convert KDD dataset to GraphSAGE one
-"""
-def datasetConvert(dataCenter_kdd, ds):
-    if ds == 'IMDB' or ds == 'ACM' or ds == 'DBLP' or "citeseer" or 'ppi':
-        dataCenter_sage = copy.deepcopy(dataCenter_kdd)
-        
-        adj_lists = defaultdict(set)
-        adj_kdd = getattr(dataCenter_kdd, ds + '_adj_lists')
-        for row in range(len(adj_kdd)):
-            for col in range(len(adj_kdd[0])):
-                if adj_kdd[row][col] == 1:
-                    adj_lists[row].add(col)
-        # print(adj_lists)
-                
-        setattr(dataCenter_sage, ds+'_adj_lists', adj_lists)
-    return dataCenter_sage
-
-        
-       
         

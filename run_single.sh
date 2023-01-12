@@ -8,6 +8,6 @@ for i in "cora" "ACM" "IMDB" "citeseer" "photos" "computers"
 do
 for j in "True" "False"
 do
-python pn2_main.py --dataSet "$i" --disjoint_transductive_inductive "$j"
+python temp_main.py --dataSet "$i" --disjoint_transductive_inductive "$j"
 done
 done

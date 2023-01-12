@@ -708,7 +708,7 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     ap = average_precision_score(y_score=prediction, y_true=true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
 
-    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//2)[-1*len(pred)//2:]
+    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//5)[-1*len(pred)//5:]
     HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
     
     pred = np.array(prediction)
@@ -765,7 +765,7 @@ def roc_auc_single(prediction, true_label):
     ap = average_precision_score(y_score=prediction, y_true=true_label)
     cof_mtx = confusion_matrix(y_true=true_label, y_pred=pred)
 
-    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//2)[-1*len(pred)//2:]
+    hr_ind = np.argpartition(np.array(prediction), -1*len(pred)//5)[-1*len(pred)//5:]
     HR = precision_score(y_pred=np.array(pred)[hr_ind], y_true=np.array(true_label)[hr_ind])
     
     pred = np.array(prediction)
