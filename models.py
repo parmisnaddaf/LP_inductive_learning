@@ -1245,7 +1245,7 @@ class PN_FrameWork(torch.nn.Module):
         # with open('./results_csv/results_CLL.csv', 'w', newline="\n") as f:
         #     writer = csv.writer(f)
         #     writer.writerow([cll.item()])
-        num_it = 50
+        num_it = 60
         for i in range(num_it - 1):
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)
