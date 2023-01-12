@@ -52,9 +52,9 @@ class DataCenter(object):
     def load_dataSet(self, dataSet='cora', model_name= 'KDD'):
         if model_name == "KDD":
             if dataSet == 'photos' or dataSet == 'computers':
-                labels = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/labels.npy")
-                features= np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/features.npy")
-                adj = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/adj.npy")
+                labels = np.load("./datasets/" + dataSet + "/labels.npy")
+                features= np.load("./datasets/" + dataSet + "/features.npy")
+                adj = np.load("./datasets/" + dataSet + "/adj.npy")
                 
                 test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
     
@@ -72,14 +72,14 @@ class DataCenter(object):
                 names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
                 objects = []
                 for i in range(len(names)):
-                    with open("/localhome/pnaddaf/Desktop/parmis/inductive_learning/citeseer/ind.{}.{}".format(dataSet, names[i]), 'rb') as f:
+                    with open("./datasets/citeseer/ind.{}.{}".format(dataSet, names[i]), 'rb') as f:
                         if sys.version_info > (3, 0):
                             objects.append(pkl.load(f, encoding='latin1'))
                         else:
                             objects.append(pkl.load(f))
             
                 x, y, tx, ty, allx, ally, graph = tuple(objects)
-                test_idx_reorder = parse_index_file("/localhome/pnaddaf/Desktop/parmis/inductive_learning/citeseer/ind.{}.test.index".format(dataSet))
+                test_idx_reorder = parse_index_file("./datasets/citeseer/ind.{}.test.index".format(dataSet))
                 test_idx_range = np.sort(test_idx_reorder)
             
 
@@ -201,8 +201,8 @@ class DataCenter(object):
                 
             
             if dataSet == 'cora':
-                cora_content_file = self.config['file_path.cora_content']
-                cora_cite_file = self.config['file_path.cora_cite']
+                cora_content_file = './datasets/cora/cora.content'
+                cora_cite_file = './datasets/cora/cora.cites'
                 
                 with open(cora_content_file) as f:
                     content = f.readlines()
@@ -263,7 +263,7 @@ class DataCenter(object):
             if dataSet == "IMDB":
                 obj = []
                 
-                adj_file_name = self.config['file_path.imdb_edges']
+                adj_file_name = "./datasets/IMDB/edges.pkl"
                 
                 with open(adj_file_name, 'rb') as f:
                     obj.append(pkl.load(f))
@@ -285,10 +285,10 @@ class DataCenter(object):
                 node_label.extend([1 for i in range(in_1,in_2)])
                 node_label.extend([2 for i in range(in_2, in_3)])
             
-                obj = []                
-                feat_file_name = self.config['file_path.imdb_feats']
-                with open(feat_file_name, 'rb') as f:
+                obj = []
+                with open("./datasets/IMDB/node_features.pkl", 'rb') as f:
                     obj.append(pkl.load(f))
+                feature = sp.csr_matrix(obj[0])
                 feature = sp.csr_matrix(obj[0])
                 
                 index = 9000
@@ -305,7 +305,7 @@ class DataCenter(object):
 
             if dataSet == "ACM":
                 obj = []
-                adj_file_name = self.config['file_path.acm_edges']
+                adj_file_name = "./datasets/ACM/edges.pkl"
                 with open(adj_file_name, 'rb') as f:
                         obj.append(pkl.load(f))
                         
@@ -338,8 +338,7 @@ class DataCenter(object):
             
             
                 obj = []
-                feat_file_name = self.config['file_path.acm_feats']
-                with open(feat_file_name, 'rb') as f:
+                with open("./datasets/ACM/node_features.pkl", 'rb') as f:
                     obj.append(pkl.load(f))
                 feature = sp.csr_matrix(obj[0])
             
@@ -360,7 +359,7 @@ class DataCenter(object):
 
                 obj = []
 
-                adj_file_name = "/Users/parmis/Desktop/indd/inductive_learning/DBLP/edges.pkl"
+                adj_file_name = "./datasets/DBLP/edges.pkl"
             
             
                 with open(adj_file_name, 'rb') as f:
@@ -386,7 +385,7 @@ class DataCenter(object):
             
             
                 obj = []
-                with open("/Users/parmis/Desktop/indd/inductive_learning/DBLP/node_features.pkl", 'rb') as f:
+                with open("./datasets/node_features.pkl", 'rb') as f:
                     obj.append(pkl.load(f))
                 feature = sp.csr_matrix(obj[0])
                 
