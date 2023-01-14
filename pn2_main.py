@@ -43,14 +43,14 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='IMDB')
+parser.add_argument('--dataSet', type=str, default='photos')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
 parser.add_argument('--config', type=str, default='experiments.conf')
 parser.add_argument('-decoder_type', dest="decoder_type", default="ML_SBM",
                     help="the decoder type, Either SBM or InnerDot  or TransE or MapedInnerProduct_SBM or multi_inner_product and TransX or SBM_REL")
-parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GAT",
+parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GCN",
                     help="the encoder type, Either ,mixture_of_GCNs, mixture_of_GatedGCNs , Multi_GCN or Edge_GCN ")
 parser.add_argument('-f', dest="use_feature", default=True, help="either use features or identity matrix")
 parser.add_argument('-NofRels', dest="num_of_relations", default=1,
@@ -75,10 +75,10 @@ parser.add_argument('-CVAE_architecture', dest="CVAE_architecture", default='sep
                     help="the possible values are sequential, separate, and transfer")
 parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag is used for sampling methods")
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
-parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
+parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
 parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling, deterministic ")
-parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
+parser.add_argument('--method', dest="method", default="single", help="This var shows method it could be: multi, single")
 
 
 save_recons_adj_name = ""
@@ -179,7 +179,7 @@ if method=='multi':
     single_link = False
     multi_link = True
     multi_single_link_bl = False
-elif method == 'single':    
+elif method == 'single':
     single_link = True
     multi_link = False
     multi_single_link_bl = False
@@ -230,8 +230,10 @@ false_multi_links_list = []
 with open ('./results_csv/results_CLL.csv','w') as f:
     wtr = csv.writer(f)
     wtr.writerow(['','q'])
-
+xx = 0
 for i in sample_list:
+    print(xx)
+    xx +=1
     save_recons_adj_name_i = save_recons_adj_name + '_' + str(i)
     #if sampling_method == 'monte':
         # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
@@ -367,7 +369,7 @@ for i in sample_list:
         recall_list_multi_single.append(recall)
         HR_list_multi_single.append(HR)
         CLL_list_multi.append(CLL)
-        
+
 
 
 if single_link:
@@ -409,11 +411,11 @@ if single_link:
     recall_list_single.append(recall)
     HR_list_single.append(HR)
     CLL_list_single.append(CLL)
-    
 
 
-        
-    
+
+
+
 
 # only use for A0, A1
 # if multi_link:
@@ -466,7 +468,7 @@ if multi_link:
     recall_mean_multi = statistics.mean(recall_list_multi)
     HR_mean_multi = statistics.mean(HR_list_multi)
     CLL_mean_multi = statistics.mean(CLL_list_multi)
-    
+
     with open('./results_csv/results.csv', 'a', newline="\n") as f:
         writer = csv.writer(f)
         writer.writerow([save_recons_adj_name,"","","","","",""])
@@ -507,8 +509,8 @@ if single_link:
     recall_mean_single = statistics.mean(recall_list_single)
     HR_mean_single = statistics.mean(HR_list_single)
     CLL_mean_single = np.mean(CLL_list_single)
-    
-    
+
+
     with open('./results_csv/results.csv', 'a', newline="\n") as f:
         writer = csv.writer(f)
         writer.writerow([save_recons_adj_name,"","","","","",""])
