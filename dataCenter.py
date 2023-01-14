@@ -52,7 +52,7 @@ class DataCenter(object):
     def load_dataSet(self, dataSet='cora', model_name= 'KDD'):
         if model_name == "KDD":
             if dataSet == 'photos' or dataSet == 'computers':
-                # labels = np.load("./datasets/" + dataSet + "/labels.npy")
+                labels = np.load("./datasets/" + dataSet + "/labels.npy")
                 features= np.load("./datasets/" + dataSet + "/x.npy")
                 adj = np.load("./datasets/" + dataSet + "/adj.npy")
 
@@ -63,7 +63,7 @@ class DataCenter(object):
                 setattr(self, dataSet+'_train', train_indexs)
 
                 setattr(self, dataSet+'_feats', features)
-                # setattr(self, dataSet+'_labels', labels)
+                setattr(self, dataSet+'_labels', labels)
                 setattr(self, dataSet+'_adj_lists', adj)
 
 
