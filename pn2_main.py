@@ -43,7 +43,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='photos')
+parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -75,9 +75,9 @@ parser.add_argument('-CVAE_architecture', dest="CVAE_architecture", default='sep
                     help="the possible values are sequential, separate, and transfer")
 parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag is used for sampling methods")
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
-parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
+parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling, deterministic ")
+parser.add_argument('--sampling_method', dest="sampling_method", default="normalized", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
 parser.add_argument('--method', dest="method", default="single", help="This var shows method it could be: multi, single")
 
 
@@ -379,29 +379,37 @@ if single_link:
     index = np.where(np.isin(res[:, 0], testId))  # only one node of the 2 ends of an edge needs to be in testId
     test_neg_edges = res[index]
 
-    re_adj_recog_sig = torch.sigmoid(re_adj_recog)
-    pred_single_link.extend(re_adj_recog_sig[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-    true_single_link.extend(org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-
     # only for A0 and A1
-    # for test_neg_edge in test_neg_edges[:false_count]:
-    #     targets = []
-    #     idd = test_neg_edge[0]
-    #     neighbour_id = test_neg_edge[1]
-    #     adj_list_copy = copy.deepcopy(org_adj)
-    #     adj_list_copy[idd, neighbour_id] = 1
-    #     adj_list_copy[neighbour_id, idd] = 1
-    #     std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-    #                                                                 targets,
-    #                                                                 is_prior=False)
-    #     targets.append(idd)
-    #     targets.append(neighbour_id)
-    #     std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,
-    #                                                                 is_prior=True)
-    #
-    #     re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-    #     pred_single_link.extend([re_adj_prior_sig[idd, neighbour_id].tolist()])
-    #     true_single_link.extend([org_adj[idd, neighbour_id].tolist()])
+    if sampling_method== "normalized":
+        xx = 0
+        for test_neg_edge in test_neg_edges[:false_count]:
+            if xx % 10 == 0:
+                print(xx)
+            xx += 1
+            targets = []
+            idd = test_neg_edge[0]
+            neighbour_id = test_neg_edge[1]
+            adj_list_copy = copy.deepcopy(org_adj)
+            adj_list_copy[idd, neighbour_id] = 1
+            adj_list_copy[neighbour_id, idd] = 1
+            std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
+                                                                        targets, sampling_method,
+                                                                        is_prior=False)
+            targets.append(idd)
+            targets.append(neighbour_id)
+            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,sampling_method,
+                                                                        is_prior=True)
+        
+            re_adj_prior_sig = torch.sigmoid(re_adj_prior)
+            pred_single_link.extend([re_adj_prior_sig[idd, neighbour_id].tolist()])
+            true_single_link.extend([org_adj[idd, neighbour_id].tolist()])
+            ####### end of A0 and A1
+    else:
+        
+        re_adj_recog_sig = torch.sigmoid(re_adj_recog)
+        pred_single_link.extend(re_adj_recog_sig[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
+        true_single_link.extend(org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
+    
 
     auc, val_acc, val_ap, precision, recall, HR, CLL = roc_auc_single(pred_single_link, true_single_link)
     auc_list_single.append(auc)

@@ -1128,74 +1128,17 @@ class PN_FrameWork(torch.nn.Module):
             generated_adj = self.generator(z)  # link decoder
 
             if is_prior:
+                
+                if sampling_method == "normalized":
 
-                # A0 = self.run_monte(generated_adj, x, adj)
-                # A1 = self.run_importance_sampling(generated_adj, x, adj, targets)
-                #
-                # # get softmax and return
-                # generated_adj = torch.exp(A1) / (torch.exp(A0) + torch.exp(A1))
-
-                # if we use Monte Carlo sampling
-                # print("Monte Carlo")
-                # s = generated_adj
-                # num_it = 10
-                # for i in range(num_it - 1):
-                #     z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
-                #     z, m_z, std_z = self.inference(adj, z_0)
-                #     # z = self.dropout(z)
-                #     generated_adj = self.generator(z)
-                #     s += generated_adj
-                # generated_adj = s / num_it
-
-                # if important sampling
-                # print("Importance sampling")
-                # start_time = time.time()
-                # s = generated_adj
-                # num_it = 10
-                # for i in range(num_it - 1):
-                #     # print(torch.mean(self.mq))
-                #     # print(torch.mean(self.sq))
-
-                #     z_s = self.reparameterize(self.mq, self.sq)
-
-                #     # get z from prior
-                #     z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
-                #     z, m_z, std_z = self.inference(adj, z_0)  # link encoder
-
-                #     # print(torch.mean(m_z))
-                #     # print(torch.mean(std_z))
-
-                #     prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s, targets)
-                #     # recog_pdf = get_pdf(, z_s)
-
-                #     # print("pdf prior ", prior_pdf)
-                #     # print("pdf recog", recog_pdf)
-
-                #     coefficient = torch.tensor(prior_pdf - recog_pdf)
-                #     # print("COEF: ", coefficient)
-
-                #     # KLD SANITY
-                #     kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
-                #     # print("kld: ", kld)
-                #     # print("kld_eye: ", kld_eye )
-                #     # print("eclidean dist", sanity)
-
-                #     generated_adj = self.generator(z_s)
-
-                #     # print("generated_adj_org: ", generated_adj)
-                #     log_generated_adj = torch.log(torch.sigmoid(generated_adj))
-                #     # print("generated_adj_log: ", log_generated_adj)
-                #     log_generated_adj_added = torch.add(log_generated_adj, coefficient)
-                #     # print("generated_adj_add: ", log_generated_adj_added)
-                #     generated_adj_final = torch.exp(log_generated_adj)
-                #     # print(len(generated_adj_final[generated_adj_final>0]))
-                #     # print("generated_adj_final: ", generated_adj_final)
-                #     s += generated_adj_final
-                # generated_adj = s / num_it
-                # # print("--- %s seconds ---" % (time.time() - start_time))
+                    A0 = self.run_monte(generated_adj, x, adj, targets)
+                    A1 = self.run_importance_sampling(generated_adj, x, adj, targets)
+                    
+                    # get softmax and return
+                    generated_adj = torch.exp(A1) / (torch.exp(A0) + torch.exp(A1))
 
                 #if we use deterministic
-                if sampling_method=='monte':
+                elif sampling_method=='monte':
                     generated_adj = self.run_monte(generated_adj, x, adj, targets)
                     
                 elif sampling_method == 'importance_sampling':
@@ -1245,7 +1188,7 @@ class PN_FrameWork(torch.nn.Module):
         # with open('./results_csv/results_CLL.csv', 'w', newline="\n") as f:
         #     writer = csv.writer(f)
         #     writer.writerow([cll.item()])
-        num_it = 60
+        num_it = 30
         for i in range(num_it - 1):
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)
@@ -1276,7 +1219,7 @@ class PN_FrameWork(torch.nn.Module):
     def run_importance_sampling(self, generated_adj, x, adj, targets):
 
         # if important sampling
-        print("Importance sampling")
+        # print("Importance sampling")
         targets = np.array(targets)
         target_node = np.array([targets[-1]] * targets.shape[0]) 
         target_edges = np.stack((targets, target_node), axis=1)[:-1]
@@ -1287,11 +1230,9 @@ class PN_FrameWork(torch.nn.Module):
         p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
         p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
         cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
-        sum_cll += cll
-        num_it = 10
+        sum_cll = cll
+        num_it = 30
         for i in range(num_it - 1):
-            # print(torch.mean(self.mq))
-            # print(torch.mean(self.sq))
 
             z_s = self.reparameterize(self.mq, self.sq)
 
@@ -1299,23 +1240,13 @@ class PN_FrameWork(torch.nn.Module):
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
             z, m_z, std_z = self.inference(adj, z_0)  # link encoder
 
-            # print(torch.mean(m_z))
-            # print(torch.mean(std_z))
 
             prior_pdf, recog_pdf = get_pdf(m_z, std_z, self.mq, self.sq, z_s, targets)
-            # recog_pdf = get_pdf(, z_s)
-
-            # print("pdf prior ", prior_pdf)
-            # print("pdf recog", recog_pdf)
 
             coefficient = torch.tensor(prior_pdf - recog_pdf)
-            # print("COEF: ", coefficient)
 
             # KLD SANITY
-            kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
-            # print("kld: ", kld)
-            # print("kld_eye: ", kld_eye )
-            # print("eclidean dist", sanity)
+            # kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
 
             generated_adj = self.generator(z_s)
             
@@ -1323,6 +1254,7 @@ class PN_FrameWork(torch.nn.Module):
             p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
             p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
             cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+            sum_cll += cll
 
             # print("generated_adj_org: ", generated_adj)
             log_generated_adj = torch.log(torch.sigmoid(generated_adj))
