@@ -81,7 +81,6 @@ parser.add_argument('--sampling_method', dest="sampling_method", default="normal
 parser.add_argument('--method', dest="method", default="single", help="This var shows method it could be: multi, single")
 
 
-save_recons_adj_name = ""
 args_kdd = parser.parse_args()
 disjoint_transductive_inductive = args_kdd.disjoint_transductive_inductive
 if disjoint_transductive_inductive=="False":
@@ -89,9 +88,9 @@ if disjoint_transductive_inductive=="False":
 elif disjoint_transductive_inductive=="True":
     disjoint_transductive_inductive = True
 if disjoint_transductive_inductive:
-    save_recons_adj_name = save_recons_adj_name + args_kdd.sampling_method + "_fully_"
+    save_recons_adj_name =args_kdd.encoder_type + "_" + args_kdd.sampling_method + "_fully_"
 else:
-    save_recons_adj_name = save_recons_adj_name + args_kdd.sampling_method + "_semi_"
+    save_recons_adj_name = args_kdd.encoder_type + "_" + args_kdd.sampling_method + "_semi_"
 
 print("")
 print("SETING: " + str(args_kdd))
