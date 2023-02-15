@@ -194,7 +194,7 @@ elif single_link:
 else:
     save_recons_adj_name = save_recons_adj_name + 'multi_link_'+ds
 
-print(save_recons_adj_name)
+
 
 pred_single_link = []
 true_single_link = []
@@ -465,7 +465,7 @@ if single_link:
 #     HR_list_multi.append(HR)
 
 # Print results
-
+print(save_recons_adj_name)
 
 if multi_link:
     auc_mean_multi = statistics.mean(auc_list_multi)
@@ -481,7 +481,6 @@ if multi_link:
         writer.writerow([save_recons_adj_name,"","","","","",""])
         writer.writerow([auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi])
 
-    print("multi link")
     print("auc: ", auc_mean_multi)
     print("acc", val_acc_mean_multi)
     print("ap: ", val_ap_mean_multi)
@@ -499,7 +498,6 @@ if multi_single_link_bl:
     HR_mean_multi_single = statistics.mean(HR_list_multi_single)
     CLL_mean_multi_single = np.mean(CLL_list_multi_single)
 
-    print("multi link")
     print("auc: ", auc_mean_multi_single)
     print("acc", val_acc_mean_multi_single)
     print("ap: ", val_ap_mean_multi_single)
@@ -523,8 +521,6 @@ if single_link:
         writer.writerow([save_recons_adj_name,"","","","","",""])
         writer.writerow([auc_mean_single,val_acc_mean_single,val_ap_mean_single,precision_mean_single,recall_mean_single,HR_mean_single,CLL_mean_single])
 
-
-    print("single link")
     print("auc: ", auc_mean_single)
     print("acc", val_acc_mean_single)
     print("ap: ", val_ap_mean_single)
