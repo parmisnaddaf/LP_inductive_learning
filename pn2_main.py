@@ -41,7 +41,7 @@ warnings.simplefilter('ignore')
 
 parser = argparse.ArgumentParser(description='Inductive')
 
-parser.add_argument('-e', dest="epoch_number", default=100, help="Number of Epochs")
+parser.add_argument('-e', dest="epoch_number", default=10, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
@@ -77,23 +77,23 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="normalized", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
+parser.add_argument('--sampling_method', dest="sampling_method", default="det", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
 parser.add_argument('--method', dest="method", default="single", help="This var shows method it could be: multi, single")
 
 
-args_kdd = parser.parse_args()
-disjoint_transductive_inductive = args_kdd.disjoint_transductive_inductive
+args = parser.parse_args()
+disjoint_transductive_inductive = args.disjoint_transductive_inductive
 if disjoint_transductive_inductive=="False":
     disjoint_transductive_inductive = False
 elif disjoint_transductive_inductive=="True":
     disjoint_transductive_inductive = True
 if disjoint_transductive_inductive:
-    save_recons_adj_name =args_kdd.encoder_type + "_" + args_kdd.sampling_method + "_fully_"
+    save_recons_adj_name =args.encoder_type[-3:] + "_" + args.sampling_method + "_fully_" + args.method + "_" + args.dataSet
 else:
-    save_recons_adj_name = args_kdd.encoder_type + "_" + args_kdd.sampling_method + "_semi_"
+    save_recons_adj_name = args.encoder_type[-3:] + "_" + args.sampling_method + "_semi_"
 
 print("")
-print("SETING: " + str(args_kdd))
+print("SETING: " + str(args))
 
 pltr = plotter.Plotter(functions=["Accuracy", "loss", "AUC"])
 
@@ -107,39 +107,37 @@ device = torch.device(device_id)
 
 # %% load config
 
-random.seed(args_kdd.seed)
-np.random.seed(args_kdd.seed)
-torch.manual_seed(args_kdd.seed)
-torch.cuda.manual_seed_all(args_kdd.seed)
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
 
 # load config file
-config = pyhocon.ConfigFactory.parse_file(args_kdd.config)
+config = pyhocon.ConfigFactory.parse_file(args.config)
 
 # %% load data
-ds = args_kdd.dataSet
+ds = args.dataSet
 dataCenter_kdd = DataCenter(config)
 dataCenter_kdd.load_dataSet(ds, "KDD")
-features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats')).to(device)
-
-
 adj_list = sparse.csr_matrix(getattr(dataCenter_kdd, ds + '_adj_lists'))
+features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats'))
+org_adj = adj_list.toarray()
 
 
-# %%  train inductive_pn
-inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd,
-                                         args_kdd, device)
+
+#  train inductive_pn
+inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd.to(device),
+                                         args, device)
 
 # Split A into test and train
 trainId = getattr(dataCenter_kdd, ds + '_train')
 testId = getattr(dataCenter_kdd, ds + '_test')
 validId = getattr(dataCenter_kdd, ds + '_val')
 labels = getattr(dataCenter_kdd, ds + '_labels')
-adj_list = sparse.csr_matrix(getattr(dataCenter_kdd, ds + '_adj_lists'))
-# test_edges_false, test_edges, train_edges_false, train_edges, val_edes_false, val_edges = mask_test_edges(adj_list,
-#                                                                                                           testId,
-#                                                                                                           trainId,
-#                                                                                                           validId)
 
+
+
+# defining metric lists
 auc_list_multi = []
 val_acc_list_multi = []
 val_ap_list_multi = []
@@ -148,7 +146,7 @@ recall_list_multi = []
 CVAE_list_multi = []
 HR_list_multi = []
 CLL_list_multi = []
-neighbour_prob_multi_link_list = []
+
 
 auc_list_single = []
 val_acc_list_single = []
@@ -168,12 +166,10 @@ HR_list_multi_single = []
 CVAE_list_multi_single = []
 CLL_list_multi_single = []
 
-adj_list = sparse.csr_matrix(getattr(dataCenter_kdd, ds + '_adj_lists'))
-features_kdd = torch.FloatTensor(getattr(dataCenter_kdd, ds + '_feats'))
-org_adj = adj_list.toarray()
+
 
 prior_only = False
-method = args_kdd.method
+method = args.method
 if method=='multi':
     single_link = False
     multi_link = True
@@ -187,14 +183,6 @@ else:
     multi_link = False
     multi_single_link_bl = True
 
-if multi_link:
-    save_recons_adj_name = save_recons_adj_name + 'multi_'+ds
-elif single_link:
-    save_recons_adj_name = save_recons_adj_name + 'single_'+ds
-else:
-    save_recons_adj_name = save_recons_adj_name + 'multi_link_'+ds
-
-
 
 pred_single_link = []
 true_single_link = []
@@ -204,7 +192,7 @@ pred_multi_link = []
 true_multi_link = []
 
 targets = []
-sampling_method = args_kdd.sampling_method
+sampling_method = args.sampling_method
 
 if disjoint_transductive_inductive:
     res = org_adj.nonzero()
@@ -233,11 +221,6 @@ xx = 0
 for i in sample_list:
     print(xx)
     xx +=1
-    save_recons_adj_name_i = save_recons_adj_name + '_' + str(i)
-    #if sampling_method == 'monte':
-        # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow([save_recons_adj_name_i])
     targets = []
     idd = idd_list[i]
     neighbour_id = neighbour_list[i]
@@ -264,7 +247,7 @@ for i in sample_list:
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
         pred_single_link.append(re_adj_prior_sig[idd, neighbour_id].tolist())
         true_single_link.append(org_adj[idd, neighbour_id].tolist())
-        #torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name+'/'+save_recons_adj_name_i+'.pt')
+
 
     if multi_link:
         adj_list_copy = copy.deepcopy(org_adj)
@@ -307,15 +290,7 @@ for i in sample_list:
         recall_list_multi.append(recall)
         HR_list_multi.append(HR)
         CLL_list_multi = CLL
-        # with open('./results_csv/results.csv', 'a', newline="\n") as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow([save_recons_adj_name_i])
-        #     writer.writerow([precision, recall, val_acc, val_ap, auc, CLL, HR])
 
-        #torch.save(re_adj_prior, './output_csv/'+save_recons_adj_name_i+'.pt')
-
-        # neighbour_prob_multi_link_list.append(get_neighbour_prob(re_adj_prior, idd, org_adj[idd].nonzero()[
-        #     0]).item())  # this function calculates the prob of all positive edges around idd node
 
     if multi_single_link_bl:
         for nn in org_adj[idd].nonzero()[0]:
@@ -481,13 +456,10 @@ if multi_link:
         writer.writerow([save_recons_adj_name,"","","","","",""])
         writer.writerow([auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi])
 
-    print("auc: ", auc_mean_multi)
-    print("acc", val_acc_mean_multi)
-    print("ap: ", val_ap_mean_multi)
-    print("precision", precision_mean_multi)
-    print("recall", recall_mean_multi)
-    print("HR", HR_mean_multi)
-    print("CLL", CLL_mean_multi)
+
+
+    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi))
+    
 
 if multi_single_link_bl:
     auc_mean_multi_single = statistics.mean(auc_list_multi_single)
@@ -497,14 +469,10 @@ if multi_single_link_bl:
     recall_mean_multi_single = statistics.mean(recall_list_multi_single)
     HR_mean_multi_single = statistics.mean(HR_list_multi_single)
     CLL_mean_multi_single = np.mean(CLL_list_multi_single)
+    
+    
+    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi_single, val_acc_mean_multi_single, val_ap_mean_multi_single, precision_mean_multi_single, recall_mean_multi_single, HR_mean_multi_single, CLL_mean_multi_single))
 
-    print("auc: ", auc_mean_multi_single)
-    print("acc", val_acc_mean_multi_single)
-    print("ap: ", val_ap_mean_multi_single)
-    print("precision", precision_mean_multi_single)
-    print("recall", recall_mean_multi_single)
-    print("HR", HR_mean_multi_single)
-    print("CLL", CLL_mean_multi_single)
 
 if single_link:
     auc_mean_single = statistics.mean(auc_list_single)
@@ -521,13 +489,5 @@ if single_link:
         writer.writerow([save_recons_adj_name,"","","","","",""])
         writer.writerow([auc_mean_single,val_acc_mean_single,val_ap_mean_single,precision_mean_single,recall_mean_single,HR_mean_single,CLL_mean_single])
 
-    print("auc: ", auc_mean_single)
-    print("acc", val_acc_mean_single)
-    print("ap: ", val_ap_mean_single)
-    print("precision", precision_mean_single)
-    print("recall", recall_mean_single)
-    print("HR", HR_mean_single)
-    print("CLL", CLL_mean_single)
+    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_single, val_acc_mean_single, val_ap_mean_single, precision_mean_single, recall_mean_single, HR_mean_single, CLL_mean_single))
 
-# print("CLL single",statistics.mean(neigbour_prob_single_list))
-# print("CLL multi",statistics.mean(neighbour_prob_multi_link_list))
