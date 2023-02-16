@@ -41,7 +41,7 @@ warnings.simplefilter('ignore')
 
 parser = argparse.ArgumentParser(description='Inductive')
 
-parser.add_argument('-e', dest="epoch_number", default=10, help="Number of Epochs")
+parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
