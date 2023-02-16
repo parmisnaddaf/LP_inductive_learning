@@ -90,7 +90,7 @@ elif disjoint_transductive_inductive=="True":
 if disjoint_transductive_inductive:
     save_recons_adj_name =args.encoder_type[-3:] + "_" + args.sampling_method + "_fully_" + args.method + "_" + args.dataSet
 else:
-    save_recons_adj_name = args.encoder_type[-3:] + "_" + args.sampling_method + "_semi_"
+    save_recons_adj_name = args.encoder_type[-3:] + "_" + args.sampling_method + "_semi_" + args.method + "_" + args.dataSet
 
 print("")
 print("SETING: " + str(args))
@@ -132,8 +132,7 @@ inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd.to(device)
 # Split A into test and train
 trainId = getattr(dataCenter_kdd, ds + '_train')
 testId = getattr(dataCenter_kdd, ds + '_test')
-validId = getattr(dataCenter_kdd, ds + '_val')
-labels = getattr(dataCenter_kdd, ds + '_labels')
+
 
 
 
@@ -212,7 +211,7 @@ index = np.where(np.isin(res[0], testId))  # only one node of the 2 ends of an e
 idd_list = res[0][index]
 neighbour_list = res[1][index]
 sample_list = random.sample(range(0, len(idd_list)), 100)
-false_multi_links_list = []
+
 
 with open ('./results_csv/results_CLL.csv','w') as f:
     wtr = csv.writer(f)
@@ -255,15 +254,13 @@ for i in sample_list:
         adj_list_copy[:, idd] = 0  # set all the neigbours to 0
 
         true_multi_links = org_adj[idd].nonzero()
-
-        false_multi_link = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links[0])))
-        false_multi_links_list.append([[idd, i] for i in list(false_multi_link)])
+        false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links[0])))
 
         target_list = [[idd, i] for i in list(true_multi_links[0])]
-        target_list.extend([[idd, i] for i in list(false_multi_link)])
+        target_list.extend([[idd, i] for i in list(false_multi_links)])
 
         targets = list(true_multi_links[0])
-        targets.extend(list(false_multi_link)) ################################ add back for importance sampling
+        targets.extend(list(false_multi_links)) ################################ add back for importance sampling
         targets.append(idd)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
@@ -397,47 +394,6 @@ if single_link:
 
 
 
-
-
-# only use for A0, A1
-# if multi_link:
-#     for false_multi_links in false_multi_links_list:
-#         adj_list_copy = copy.deepcopy(org_adj)
-#         targets = []
-#
-#         # adj_list_copy[false_multi_links[:, 0], false_multi_links[:, 1]] = 1
-#         # adj_list_copy[false_multi_links[:, 1], false_multi_links[:, 0]] = 1
-#         # targets = false_multi_links[:, 1].tolist()
-#         # targets.append(false_multi_links[0][0])
-#
-#         for false_multi_link in false_multi_links:
-#             idd = false_multi_link[0]
-#             neighbour_id = false_multi_link[1]
-#             adj_list_copy[idd, neighbour_id] = 1
-#             adj_list_copy[neighbour_id, idd] = 1
-#             targets.append(neighbour_id)
-#         targets.append(idd)
-#
-#         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-#                                                                     [],
-#                                                                     is_prior=False)
-#
-#         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,
-#                                                                     is_prior=True)
-#
-#         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-#
-#         false_multi_links = np.array(false_multi_links)
-#         pred_multi_link.extend(re_adj_prior_sig[false_multi_links[:, 0], false_multi_links[:, 1]].tolist())
-#         true_multi_link.extend(org_adj[false_multi_links[:, 0], false_multi_links[:, 1]].tolist())
-#
-#     auc, val_acc, val_ap, precision, recall, HR = roc_auc_single(pred_multi_link, true_multi_link)
-#     auc_list_multi.append(auc)
-#     val_acc_list_multi.append(val_acc)
-#     val_ap_list_multi.append(val_ap)
-#     precision_list_multi.append(precision)
-#     recall_list_multi.append(recall)
-#     HR_list_multi.append(HR)
 
 # Print results
 print(save_recons_adj_name)
