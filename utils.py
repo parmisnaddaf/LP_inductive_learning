@@ -9,6 +9,9 @@ from sklearn.utils import shuffle
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix, average_precision_score, recall_score, \
     precision_score
+    
+from sklearn.metrics import precision_recall_curve
+from numpy import argmax
 
 from torchmetrics import RetrievalHitRate
 
@@ -696,8 +699,15 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
         true_label.append(origianl_agjacency[edge[1], edge[0]])
 
     pred = np.array(prediction)
-    pred[pred > .5] = 1.0
-    pred[pred < .5] = 0.0
+    
+    
+    precision, recall, thresholds = precision_recall_curve(true_label, pred)
+    fscore = (2 * precision * recall) / (precision + recall)
+    ix = argmax(fscore)
+    Threshold = thresholds[ix]
+    
+    pred[pred > Threshold] = 1.0
+    pred[pred < Threshold] = 0.0
     pred = pred.astype(int)
 
 
