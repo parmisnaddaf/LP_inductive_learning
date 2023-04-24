@@ -43,14 +43,14 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='cora')
+parser.add_argument('--dataSet', type=str, default='ACM')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
 parser.add_argument('--config', type=str, default='experiments.conf')
 parser.add_argument('-decoder_type', dest="decoder_type", default="ML_SBM",
                     help="the decoder type, Either SBM or InnerDot  or TransE or MapedInnerProduct_SBM or multi_inner_product and TransX or SBM_REL")
-parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GCN",
+parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GAT",
                     help="the encoder type, Either ,mixture_of_GCNs, mixture_of_GatedGCNs , Multi_GCN or Edge_GCN ")
 parser.add_argument('-f', dest="use_feature", default=True, help="either use features or identity matrix")
 parser.add_argument('-NofRels', dest="num_of_relations", default=1,
@@ -187,8 +187,8 @@ pred_single_link = []
 true_single_link = []
 pred_multi_single_link = []
 true_multi_single_link = []
-pred_multi_link = []
-true_multi_link = []
+
+
 
 targets = []
 sampling_method = args.sampling_method
@@ -204,7 +204,7 @@ if disjoint_transductive_inductive:
 # run recognition separately
 std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets, sampling_method,
                                                             is_prior=False)
-re_adj_recog_sig = torch.sigmoid(re_adj_recog)
+
 # run prior network separately
 res = org_adj.nonzero()
 index = np.where(np.isin(res[0], testId))  # only one node of the 2 ends of an edge needs to be in testId
@@ -260,7 +260,7 @@ for i in sample_list:
         target_list.extend([[idd, i] for i in list(false_multi_links)])
 
         targets = list(true_multi_links[0])
-        targets.extend(list(false_multi_links)) ################################ add back for importance sampling
+        targets.extend(list(false_multi_links))
         targets.append(idd)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
@@ -276,8 +276,7 @@ for i in sample_list:
 
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
         target_list = np.array(target_list)
-        # pred_multi_link.extend(re_adj_prior_sig[target_list[:, 0], target_list[:, 1]].tolist())
-        # true_multi_link.extend(org_adj[target_list[:, 0], target_list[:, 1]].tolist())
+
 
         auc, val_acc, val_ap, precision, recall, HR, CLL = get_metrices(target_list, org_adj, re_adj_prior)
         auc_list_multi.append(auc)
@@ -289,57 +288,57 @@ for i in sample_list:
         CLL_list_multi = CLL
 
 
-    if multi_single_link_bl:
-        for nn in org_adj[idd].nonzero()[0]:
-            adj_list_copy = copy.deepcopy(org_adj)
-            # set all the neighbours expect the test one to 0 for recognition network
-            adj_list_copy, false_count = get_single_link_evidence(adj_list_copy, idd,
-                                                                  np.delete(adj_list_copy[idd].nonzero()[0],
-                                                                            np.where(adj_list_copy[idd].nonzero()[
-                                                                                         0] == nn)))
-            std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets, sampling_method,
-                                                                        is_prior=False)
+    # if multi_single_link_bl:
+    #     for nn in org_adj[idd].nonzero()[0]:
+    #         adj_list_copy = copy.deepcopy(org_adj)
+    #         # set all the neighbours expect the test one to 0 for recognition network
+    #         adj_list_copy, false_count = get_single_link_evidence(adj_list_copy, idd,
+    #                                                               np.delete(adj_list_copy[idd].nonzero()[0],
+    #                                                                         np.where(adj_list_copy[idd].nonzero()[
+    #                                                                                      0] == nn)))
+    #         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
+    #                                                                     targets, sampling_method,
+    #                                                                     is_prior=False)
 
-            adj_list_copy[idd, nn] = 0  # find a test edge and set it to 0
-            adj_list_copy[nn, idd] = 0  # find a test edge and set it to 0
+    #         adj_list_copy[idd, nn] = 0  # find a test edge and set it to 0
+    #         adj_list_copy[nn, idd] = 0  # find a test edge and set it to 0
 
-            targets.append(idd)
-            targets.append(nn)
-            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets, sampling_method, is_prior=True)
+    #         targets.append(idd)
+    #         targets.append(nn)
+    #         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
+    #                                                                     targets, sampling_method, is_prior=True)
 
-            if prior_only:
-                CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(),
-                                 org_adj, idd, neighbour_id).detach().numpy()
-            else:
-                CVAE = CVAE_loss(m_z_recog, m_z_prior, std_z_recog, std_z_prior, re_adj_prior.detach().numpy(),
-                                 org_adj, idd, neighbour_id).detach().numpy()
-            CVAE_list_multi_single.append(CVAE)
+    #         if prior_only:
+    #             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(),
+    #                              org_adj, idd, neighbour_id).detach().numpy()
+    #         else:
+    #             CVAE = CVAE_loss(m_z_recog, m_z_prior, std_z_recog, std_z_prior, re_adj_prior.detach().numpy(),
+    #                              org_adj, idd, neighbour_id).detach().numpy()
+    #         CVAE_list_multi_single.append(CVAE)
 
-            re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-            pred_multi_single_link.append(re_adj_prior_sig[idd, nn].tolist())
-            true_multi_single_link.append(org_adj[idd, nn].tolist())
+    #         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
+    #         pred_multi_single_link.append(re_adj_prior_sig[idd, nn].tolist())
+    #         true_multi_single_link.append(org_adj[idd, nn].tolist())
 
-        # Get false edges
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets,
-                                                                     sampling_method, is_prior=False)
-        re_adj_recog_sig = torch.sigmoid(re_adj_recog)
-        res = np.argwhere(org_adj[idd] == 0)
-        np.random.shuffle(res)
-        index = np.where(np.isin(res[:, 0], testId))  # only one node of the 2 ends of an edge needs to be in testId
-        test_neg_edges = res[index]
-        true_multi_single_link.extend(
-            org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-        auc, val_acc, val_ap, conf_mtrx, precision, recall, HR, CLL = roc_auc_single(pred_multi_single_link,
-                                                                                true_multi_single_link)
-        auc_list_multi_single.append(auc)
-        val_acc_list_multi_single.append(val_acc)
-        val_ap_list_multi_single.append(val_ap)
-        precision_list_multi_single.append(precision)
-        recall_list_multi_single.append(recall)
-        HR_list_multi_single.append(HR)
-        CLL_list_multi.append(CLL)
+    #     # Get false edges
+    #     std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets,
+    #                                                                  sampling_method, is_prior=False)
+    #     re_adj_recog_sig = torch.sigmoid(re_adj_recog)
+    #     res = np.argwhere(org_adj[idd] == 0)
+    #     np.random.shuffle(res)
+    #     index = np.where(np.isin(res[:, 0], testId))  # only one node of the 2 ends of an edge needs to be in testId
+    #     test_neg_edges = res[index]
+    #     true_multi_single_link.extend(
+    #         org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
+    #     auc, val_acc, val_ap, conf_mtrx, precision, recall, HR, CLL = roc_auc_single(pred_multi_single_link,
+    #                                                                             true_multi_single_link)
+    #     auc_list_multi_single.append(auc)
+    #     val_acc_list_multi_single.append(val_acc)
+    #     val_ap_list_multi_single.append(val_ap)
+    #     precision_list_multi_single.append(precision)
+    #     recall_list_multi_single.append(recall)
+    #     HR_list_multi_single.append(HR)
+    #     CLL_list_multi.append(CLL)
 
 
 

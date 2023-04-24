@@ -512,8 +512,8 @@ class multi_layer_GAT(torch.nn.Module):
         """
         super(multi_layer_GAT, self).__init__()
         layers = [in_feature] + layers
-        self.num_head = 4
-        latent_dim =int(latent_dim/(4**2))
+        self.num_head = 8
+        latent_dim =int(latent_dim/(8**2))
         
         if len(layers) < 1: raise Exception("sorry, you need at least two layer")
         self.ConvLayers = torch.nn.ModuleList(
@@ -1144,7 +1144,8 @@ class PN_FrameWork(torch.nn.Module):
                 elif sampling_method == 'importance_sampling':
                     generated_adj = self.run_importance_sampling(generated_adj, x, adj, targets)
                     
-                else:
+                else: 
+                    # deterministic
                     targets = np.array(targets)
                     target_node = np.array([targets[-1]] * targets.shape[0]) 
                     target_edges = np.stack((targets, target_node), axis=1)[:-1]
@@ -1169,9 +1170,6 @@ class PN_FrameWork(torch.nn.Module):
         return std_z, m_z, z, generated_adj
 
     def run_monte(self, generated_adj, x, adj, targets):
-        # if we use Monte Carlo sampling
-        #print("Monte karlo \u2764")
-        
         
         # make edge list from the ends of the target nodes
         targets = np.array(targets)
@@ -1200,9 +1198,6 @@ class PN_FrameWork(torch.nn.Module):
             cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
       
             sum_cll += cll
-            # with open('./results_csv/results_CLL.csv', 'w', newline="\n") as f:
-            #     writer = csv.writer(f)
-            #     writer.writerow([cll])
             s += generated_adj
             
             
@@ -1211,15 +1206,12 @@ class PN_FrameWork(torch.nn.Module):
         with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
             writer = csv.writer(f)
             writer.writerow(['average:',avg_cll])
-        #cll = cll / num_it
-        #print(cll)
+
 
         return generated_adj
 
     def run_importance_sampling(self, generated_adj, x, adj, targets):
 
-        # if important sampling
-        # print("Importance sampling")
         targets = np.array(targets)
         target_node = np.array([targets[-1]] * targets.shape[0]) 
         target_edges = np.stack((targets, target_node), axis=1)[:-1]
@@ -1245,8 +1237,6 @@ class PN_FrameWork(torch.nn.Module):
 
             coefficient = torch.tensor(prior_pdf - recog_pdf)
 
-            # KLD SANITY
-            # kld, kld_eye, sanity = self.kld_d(m_z, std_z, self.mq, self.sq)
 
             generated_adj = self.generator(z_s)
             
@@ -1256,14 +1246,13 @@ class PN_FrameWork(torch.nn.Module):
             cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
             sum_cll += cll
 
-            # print("generated_adj_org: ", generated_adj)
+
             log_generated_adj = torch.log(torch.sigmoid(generated_adj))
-            # print("generated_adj_log: ", log_generated_adj)
+
             log_generated_adj_added = torch.add(log_generated_adj, coefficient)
-            # print("generated_adj_add: ", log_generated_adj_added)
+
             generated_adj_final = torch.exp(log_generated_adj)
-            # print(len(generated_adj_final[generated_adj_final>0]))
-            # print("generated_adj_final: ", generated_adj_final)
+
             s += generated_adj_final
         generated_adj = s / num_it
         avg_cll = sum_cll/num_it
@@ -1281,6 +1270,7 @@ class PN_FrameWork(torch.nn.Module):
         total_res = 0
         torch_res_total = 0
         torch_res_total_eye = 0
+
 
         for i in range(s0.shape[0]):
             s0_kl_eye = np.eye(s0.shape[1])

@@ -55,6 +55,10 @@ class DataCenter(object):
                 labels = np.load("./datasets/" + dataSet + "/labels.npy")
                 features= np.load("./datasets/" + dataSet + "/x.npy")
                 adj = np.load("./datasets/" + dataSet + "/adj.npy")
+                
+                # labels = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/labels.npy")
+                # features= np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/features.npy")
+                # adj = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/" + dataSet + "/adj.npy")
 
                 test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
 
@@ -291,7 +295,7 @@ class DataCenter(object):
                 feature = sp.csr_matrix(obj[0])
                 feature = sp.csr_matrix(obj[0])
 
-                index = 9000
+                index =-1
                 test_indexs, val_indexs, train_indexs = self._split_data(feature[:index].shape[0])
 
                 setattr(self, dataSet+'_test', test_indexs)
