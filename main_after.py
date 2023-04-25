@@ -280,8 +280,11 @@ for i in sample_list:
         target_list.extend([[idd, i] for i in list(false_multi_links)])
         target_list = np.array(target_list)
         
-        # adj_list_copy[target_list[:,0], target_list[:,1]] = 1
-        # adj_list_copy[target_list[:,1], target_list[:,0]] = 1
+        adj_list_copy_1 = copy.deepcopy(org_adj)
+        adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1
+        adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
 
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
