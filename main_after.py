@@ -258,16 +258,16 @@ for i in sample_list:
 
     if multi_link:
         # if we want to set all target edges to 1
-        if disjoint_transductive_inductive: 
-            adj_list_copy_1 = copy.deepcopy(org_adj)
-            adj_list_copy_1[idd, testId] = 1
-            adj_list_copy_1[testId, idd] = 1
-        else:
-            adj_list_copy_1[idd, :] = 1  
-            adj_list_copy_1[:, idd] = 1 
+        # if disjoint_transductive_inductive: 
+        #     adj_list_copy_1 = copy.deepcopy(org_adj)
+        #     adj_list_copy_1[idd, testId] = 1
+        #     adj_list_copy_1[testId, idd] = 1
+        # else:
+        #     adj_list_copy_1[idd, :] = 1  
+        #     adj_list_copy_1[:, idd] = 1 
         
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
         
 
@@ -279,11 +279,11 @@ for i in sample_list:
         target_list = np.array(target_list)
         
         # run rec to update q
-        # adj_list_copy_1 = copy.deepcopy(org_adj)
-        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
-        # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
-        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-        #                                                             is_prior=False)
+        adj_list_copy_1 = copy.deepcopy(org_adj)
+        adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
+        adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
 
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
