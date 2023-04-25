@@ -705,6 +705,8 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     fscore = (2 * precision * recall) / (precision + recall)
     ix = argmax(fscore)
     Threshold = thresholds[ix]
+    Threshold = 0.5
+    
     
     pred[pred > Threshold] = 1.0
     pred[pred < Threshold] = 0.0
