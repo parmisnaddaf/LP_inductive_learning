@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='citeseer')
+parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -257,6 +257,18 @@ for i in sample_list:
 
 
     if multi_link:
+        if disjoint_transductive_inductive:
+            adj_list_copy = copy.deepcopy(org_adj)
+            adj_list_copy[idd, testId] = 1
+            adj_list_copy[testId, idd] = 1
+        else:
+            adj_list_copy[idd, :] = 1  
+            adj_list_copy[:, idd] = 1 
+        
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
+
+        
         adj_list_copy = copy.deepcopy(org_adj)
         adj_list_copy[idd, :] = 0  # set all the neigbours to 0
         adj_list_copy[:, idd] = 0  # set all the neigbours to 0
