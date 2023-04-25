@@ -257,16 +257,16 @@ for i in sample_list:
 
 
     if multi_link:
-        if disjoint_transductive_inductive:
-            adj_list_copy = copy.deepcopy(org_adj)
-            adj_list_copy[idd, testId] = 1
-            adj_list_copy[testId, idd] = 1
-        else:
-            adj_list_copy[idd, :] = 1  
-            adj_list_copy[:, idd] = 1 
+        # if disjoint_transductive_inductive:
+        #     adj_list_copy = copy.deepcopy(org_adj)
+        #     adj_list_copy[idd, testId] = 1
+        #     adj_list_copy[testId, idd] = 1
+        # else:
+        #     adj_list_copy[idd, :] = 1  
+        #     adj_list_copy[:, idd] = 1 
         
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
         
         adj_list_copy = copy.deepcopy(org_adj)
