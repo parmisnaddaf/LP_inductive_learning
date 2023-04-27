@@ -85,7 +85,7 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="normalized", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
+parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
 parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
 
 
@@ -257,7 +257,7 @@ for i in sample_list:
 
 
     if multi_link:
-        # if we want to set all target edges to 1
+        # if we want to set all potential edges to 1
         # if disjoint_transductive_inductive: 
         #     adj_list_copy_1 = copy.deepcopy(org_adj)
         #     adj_list_copy_1[idd, testId] = 1
@@ -278,12 +278,12 @@ for i in sample_list:
         target_list.extend([[idd, i] for i in list(false_multi_links)])
         target_list = np.array(target_list)
         
-        # run rec to update q
-        adj_list_copy_1 = copy.deepcopy(org_adj)
-        adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
-        adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # # run rec to update q
+        # adj_list_copy_1 = copy.deepcopy(org_adj)
+        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
+        # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
@@ -292,8 +292,8 @@ for i in sample_list:
         
         # run prior
         adj_list_copy = copy.deepcopy(org_adj)
-        adj_list_copy[idd, :] = 0  # set all the neigbours to 0
-        adj_list_copy[:, idd] = 0  # set all the neigbours to 0
+        adj_list_copy[idd, :] = 1  # set all the neigbours to 0
+        adj_list_copy[:, idd] = 1  # set all the neigbours to 0
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     targets, sampling_method, is_prior=True)
 
