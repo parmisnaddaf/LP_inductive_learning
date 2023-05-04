@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='cora')
+parser.add_argument('--dataSet', type=str, default='ACM')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -258,16 +258,16 @@ for i in sample_list:
 
     if multi_link:
         # if we want to set all potential edges to 1
-        if disjoint_transductive_inductive: 
-            adj_list_copy_1 = copy.deepcopy(org_adj)
-            adj_list_copy_1[idd, testId] = 1
-            adj_list_copy_1[testId, idd] = 1
-        else:
-            adj_list_copy_1[idd, :] = 1  
-            adj_list_copy_1[:, idd] = 1 
+        # if disjoint_transductive_inductive: 
+        #     adj_list_copy_1 = copy.deepcopy(org_adj)
+        #     adj_list_copy_1[idd, testId] = 1
+        #     adj_list_copy_1[testId, idd] = 1
+        # else:
+        #     adj_list_copy_1[idd, :] = 1  
+        #     adj_list_copy_1[:, idd] = 1 
         
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
         
 
@@ -279,11 +279,11 @@ for i in sample_list:
         target_list = np.array(target_list)
         
         # # run rec to update q
-        # adj_list_copy_1 = copy.deepcopy(org_adj)
-        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
-        # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
-        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-        #                                                             is_prior=False)
+        adj_list_copy_1 = copy.deepcopy(org_adj)
+        adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
+        adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
 
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
@@ -296,6 +296,16 @@ for i in sample_list:
         adj_list_copy[:, idd] = 0  # set all the neigbours to 0
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     targets, sampling_method, is_prior=True)
+        
+        ###################################################
+        # run monte with 1 and do softmax
+        adj_list_copy[idd, :] = 1  # set all the neigbours to 0
+        adj_list_copy[:, idd] = 1  # set all the neigbours to 0
+        std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
+                                                                    targets, sampling_method, is_prior=True)
+        
+        re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
+        #########################################################
 
         if prior_only:
             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
