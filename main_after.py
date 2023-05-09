@@ -298,13 +298,14 @@ for i in sample_list:
                                                                     targets, sampling_method, is_prior=True)
         
         ###################################################
-        # run monte with 1 and do softmax
-        adj_list_copy[idd, :] = 1  # set all the neigbours to 0
-        adj_list_copy[:, idd] = 1  # set all the neigbours to 0
-        std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets, sampling_method, is_prior=True)
+        # # run monte with 1 and do softmax
+        # adj_list_copy[idd, :] = 1  # set all the neigbours to 1
+        # adj_list_copy[:, idd] = 1  # set all the neigbours to 1
+        # std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
+        #                                                             targets, sampling_method, is_prior=True)
         
-        re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
+        # #softmax
+        # re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
         #########################################################
 
         if prior_only:

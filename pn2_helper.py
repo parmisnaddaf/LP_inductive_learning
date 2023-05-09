@@ -32,6 +32,8 @@ import timeit
 
 import classification
 import plotter
+from torch.nn.functional import normalize
+
 
 
 #%% KDD model
@@ -118,6 +120,9 @@ def train_PNModel(dataCenter, features, args, device):
         haveedge = True
         encoder_model = edge_enabled_GCN(in_feature=features.shape[1], latent_dim=num_of_comunities, layers=encoder_layers)
     # asakhuja End
+    
+    elif encoder == "NVGAE":
+        encoder_model = normalized_Encoder(in_channels= features.shape[1], out_channels=num_of_comunities)
     else:
         raise Exception("Sorry, this Encoder is not Impemented; check the input args")
     

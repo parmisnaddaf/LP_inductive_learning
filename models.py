@@ -14,6 +14,9 @@ import csv
 
 import numpy as np
 from scipy.stats import multivariate_normal
+from torch_geometric.nn import GAE, VGAE, APPNP
+from torch.nn.functional import normalize
+
 
 global haveedge
 haveedge = False
@@ -1398,6 +1401,7 @@ class feature_encoder(torch.nn.Module):
     #     return h1
 
     def forward(self, x):
+        x = normalize(x, p=1.0, dim = 1)
         m_q_z = self.mean(x)
         std_q_z = torch.relu(self.std(x)) + .0001
 
@@ -1407,3 +1411,28 @@ class feature_encoder(torch.nn.Module):
     def reparameterize(self, mean, std):
         eps = torch.randn_like(std)
         return eps.mul(std).add(mean)
+
+
+
+
+
+class normalized_Encoder(torch.nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(normalized_Encoder, self).__init__()
+        self.linear1 = nn.Linear(out_channels, out_channels)
+        self.linear2 = nn.Linear(out_channels, out_channels)
+        self.propagate = APPNP(K=1, alpha=0)
+
+    def forward(self, adj , x):
+        edges = (torch.stack(adj.edges()))
+        x_ = self.linear1(x)
+        x_ = self.propagate(x_, edges)
+
+        x = self.linear2(x)
+        x = F.normalize(x,p=2,dim=1) * 1.8
+        x = self.propagate(x, edges)
+                           
+                           
+        return  x, None , None 
+
+
