@@ -506,6 +506,47 @@ class multi_layer_GCN(torch.nn.Module):
 
 
 
+
+# class multi_layer_GIN(torch.nn.Module):
+#     def __init__(self, in_feature, latent_dim=32, layers=[64]):
+#         """
+#         :param in_feature: the size of input feature; X.shape()[1]
+#         :param latent_dim: the dimention of each embedded node; |z| or len(z)
+#         :param layers: a list in which each element determine the size of corresponding GCNN Layer.
+#         """
+#         super(multi_layer_GIN, self).__init__()
+#         layers = [in_feature] + layers
+#         if len(layers) < 1: raise Exception("sorry, you need at least two layer")
+#         self.ConvLayers = torch.nn.ModuleList(
+#             GINConv(layers[i], layers[i + 1], activation=None, bias=False, weight=True) for i in
+#             range(len(layers) - 1))
+
+#         self.q_z_mean = GINConv(layers[-1], latent_dim, activation=None, bias=False, weight=True)
+
+#         self.q_z_std = GINConv(layers[-1], latent_dim, activation=None, bias=False, weight=True)
+
+#     def forward(self, adj, x):
+#         dropout = torch.nn.Dropout(0)
+#         for conv_layer in self.ConvLayers:
+#             x = torch.tanh(conv_layer(adj, x))
+#             x = dropout(x)
+
+#         m_q_z = self.q_z_mean(adj, x)
+#         std_q_z = torch.relu(self.q_z_std(adj, x)) + .0001
+
+#         z = self.reparameterize(m_q_z, std_q_z)
+#         return z, m_q_z, std_q_z,
+
+#     def reparameterize(self, mean, std):
+#         eps = torch.randn_like(std)
+#         return eps.mul(std).add(mean)
+
+
+
+
+
+
+
 class multi_layer_GAT(torch.nn.Module):
     def __init__(self, in_feature, latent_dim=32, layers=[64]):
         """
@@ -1401,7 +1442,7 @@ class feature_encoder(torch.nn.Module):
     #     return h1
 
     def forward(self, x):
-        x = normalize(x, p=1.0, dim = 1)
+        # x = normalize(x, p=1.0, dim = 1)
         m_q_z = self.mean(x)
         std_q_z = torch.relu(self.std(x)) + .0001
 
@@ -1416,23 +1457,23 @@ class feature_encoder(torch.nn.Module):
 
 
 
-class normalized_Encoder(torch.nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(normalized_Encoder, self).__init__()
-        self.linear1 = nn.Linear(out_channels, out_channels)
-        self.linear2 = nn.Linear(out_channels, out_channels)
-        self.propagate = APPNP(K=1, alpha=0)
+# class normalized_Encoder(torch.nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super(normalized_Encoder, self).__init__()
+#         self.linear1 = nn.Linear(out_channels, out_channels)
+#         self.linear2 = nn.Linear(out_channels, out_channels)
+#         self.propagate = APPNP(K=1, alpha=0)
 
-    def forward(self, adj , x):
-        edges = (torch.stack(adj.edges()))
-        x_ = self.linear1(x)
-        x_ = self.propagate(x_, edges)
+#     def forward(self, adj , x):
+#         edges = (torch.stack(adj.edges()))
+#         x_ = self.linear1(x)
+#         x_ = self.propagate(x_, edges)
 
-        x = self.linear2(x)
-        x = F.normalize(x,p=2,dim=1) * 1.8
-        x = self.propagate(x, edges)
+#         x = self.linear2(x)
+#         x = F.normalize(x,p=2,dim=1) * 1.8
+#         x = self.propagate(x, edges)
                            
                            
-        return  x, None , None 
+#         return  x, None , None 
 
 
