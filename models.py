@@ -1384,6 +1384,7 @@ class PN_FrameWork(torch.nn.Module):
     def inference(self, adj, x):
         # print(self.encoder)
         # asakhuja - Start Calling edge encoder function if flag of edge embedding is set
+        x = F.normalize(x,p=2,dim=1) * 1.8
         if (haveedge):
             z, m_q_z, std_q_z, edge_emb = self.encoder(adj, x)
             return z, m_q_z, std_q_z, edge_emb
