@@ -51,14 +51,14 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='cora')
+parser.add_argument('--dataSet', type=str, default='citeseer')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
 parser.add_argument('--config', type=str, default='experiments.conf')
 parser.add_argument('-decoder_type', dest="decoder_type", default="ML_SBM",
                     help="the decoder type, Either SBM or InnerDot  or TransE or MapedInnerProduct_SBM or multi_inner_product and TransX or SBM_REL")
-parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GIN",
+parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GAT",
                     help="the encoder type, Either ,mixture_of_GCNs, mixture_of_GatedGCNs , Multi_GCN or Edge_GCN ")
 parser.add_argument('-f', dest="use_feature", default=True, help="either use features or identity matrix")
 parser.add_argument('-NofRels', dest="num_of_relations", default=1,
@@ -258,16 +258,16 @@ for i in sample_list:
 
     if multi_link:
         # if we want to set all potential edges to 1
-        # if disjoint_transductive_inductive: 
-        #     adj_list_copy_1 = copy.deepcopy(org_adj)
-        #     adj_list_copy_1[idd, testId] = 1
-        #     adj_list_copy_1[testId, idd] = 1
-        # else:
-        #     adj_list_copy_1[idd, :] = 1  
-        #     adj_list_copy_1[:, idd] = 1 
+        if disjoint_transductive_inductive: 
+            adj_list_copy_1 = copy.deepcopy(org_adj)
+            adj_list_copy_1[idd, testId] = 1
+            adj_list_copy_1[testId, idd] = 1
+        else:
+            adj_list_copy_1[idd, :] = 1  
+            adj_list_copy_1[:, idd] = 1 
         
-        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-        #                                                             is_prior=False)
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
 
         
 
@@ -278,12 +278,12 @@ for i in sample_list:
         target_list.extend([[idd, i] for i in list(false_multi_links)])
         target_list = np.array(target_list)
         
-        # # run rec to update q
-        adj_list_copy_1 = copy.deepcopy(org_adj)
-        adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
-        adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # # # run rec to update q
+        # adj_list_copy_1 = copy.deepcopy(org_adj)
+        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
+        # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
