@@ -408,7 +408,7 @@ class DataCenter(object):
 
 
 
-    def _split_data(self, num_nodes, test_split = 0.2, val_split = 0.1):
+    def _split_data(self, num_nodes, test_split = 0.0, val_split = 0.1):
         np.random.seed(123)
         rand_indices = np.random.permutation(num_nodes)
 
