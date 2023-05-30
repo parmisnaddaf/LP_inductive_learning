@@ -139,8 +139,8 @@ inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd.to(device)
 
 # Split A into test and train
 trainId = getattr(dataCenter_kdd, ds + '_train')
-testId = getattr(dataCenter_kdd, ds + '_test')
-# testId = trainId
+# testId = getattr(dataCenter_kdd, ds + '_test')
+testId = trainId
 
 
 
@@ -263,14 +263,14 @@ for i in sample_list:
             adj_list_copy_1[idd, testId] = 1
             adj_list_copy_1[testId, idd] = 1
         else:
-            
-            adj_list_copy_1[idd, :] = 1  
-            adj_list_copy_1[:, idd] = 1 
-        
+
+            adj_list_copy_1[idd, :] = 1
+            adj_list_copy_1[:, idd] = 1
+
         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
                                                                     is_prior=False)
 
-        
+
 
         true_multi_links = org_adj[idd].nonzero()
         false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links[0])))
@@ -278,10 +278,10 @@ for i in sample_list:
         target_list = [[idd, i] for i in list(true_multi_links[0])]
         target_list.extend([[idd, i] for i in list(false_multi_links)])
         target_list = np.array(target_list)
-        
+
         # # # run rec to update q
         # adj_list_copy_1 = copy.deepcopy(org_adj)
-        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1 
+        # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1
         # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
         # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
         #                                                             is_prior=False)
@@ -289,22 +289,22 @@ for i in sample_list:
         targets = list(true_multi_links[0])
         targets.extend(list(false_multi_links))
         targets.append(idd)
-        
-        
+
+
         # run prior
         adj_list_copy = copy.deepcopy(org_adj)
         adj_list_copy[idd, :] = 0  # set all the neigbours to 0
         adj_list_copy[:, idd] = 0  # set all the neigbours to 0
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     targets, sampling_method, is_prior=True)
-        
+
         ###################################################
         # # run monte with 1 and do softmax
         # adj_list_copy[idd, :] = 1  # set all the neigbours to 1
         # adj_list_copy[:, idd] = 1  # set all the neigbours to 1
         # std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
         #                                                             targets, sampling_method, is_prior=True)
-        
+
         # #softmax
         # re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
         #########################################################
@@ -318,7 +318,7 @@ for i in sample_list:
         CVAE_list_multi.append(CVAE)
 
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-        
+
 
 
         auc, val_acc, val_ap, precision, recall, HR, CLL = get_metrices(target_list, org_adj, re_adj_prior)
@@ -391,7 +391,7 @@ if single_link:
     np.random.shuffle(res)
     index = np.where(np.isin(res[:, 0], testId))  # only one node of the 2 ends of an edge needs to be in testId
     test_neg_edges = res[index]
-    
+
     if  set_to_one == True:
         for test_neg_edge in test_neg_edges[:false_count]:
             targets = []
@@ -404,12 +404,12 @@ if single_link:
             targets.append(neighbour_id)
             std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn, targets,sampling_method,
                                                                         is_prior=True)
-            
+
             re_adj_prior_sig = torch.sigmoid(re_adj_prior)
             pred_single_link.extend([re_adj_prior_sig[idd, neighbour_id].tolist()])
             true_single_link.extend([org_adj[idd, neighbour_id].tolist()])
-    
-    
+
+
 
     # only for A0 and A1
     if sampling_method == "normalized":
@@ -431,17 +431,17 @@ if single_link:
             targets.append(neighbour_id)
             std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,sampling_method,
                                                                         is_prior=True)
-        
+
             re_adj_prior_sig = torch.sigmoid(re_adj_prior)
             pred_single_link.extend([re_adj_prior_sig[idd, neighbour_id].tolist()])
             true_single_link.extend([org_adj[idd, neighbour_id].tolist()])
             ####### end of A0 and A1
     else:
-        
+
         re_adj_recog_sig = torch.sigmoid(re_adj_recog)
         pred_single_link.extend(re_adj_recog_sig[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
         true_single_link.extend(org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-    
+
 
     auc, val_acc, val_ap, precision, recall, HR, CLL = roc_auc_single(pred_single_link, true_single_link)
     auc_list_single.append(auc)
@@ -476,7 +476,7 @@ if multi_link:
 
 
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi))
-    
+
 
 if multi_single_link_bl:
     auc_mean_multi_single = statistics.mean(auc_list_multi_single)
@@ -486,8 +486,8 @@ if multi_single_link_bl:
     recall_mean_multi_single = statistics.mean(recall_list_multi_single)
     HR_mean_multi_single = statistics.mean(HR_list_multi_single)
     CLL_mean_multi_single = np.mean(CLL_list_multi_single)
-    
-    
+
+
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi_single, val_acc_mean_multi_single, val_ap_mean_multi_single, precision_mean_multi_single, recall_mean_multi_single, HR_mean_multi_single, CLL_mean_multi_single))
 
 
@@ -507,4 +507,3 @@ if single_link:
         writer.writerow([auc_mean_single,val_acc_mean_single,val_ap_mean_single,precision_mean_single,recall_mean_single,HR_mean_single,CLL_mean_single])
 
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_single, val_acc_mean_single, val_ap_mean_single, precision_mean_single, recall_mean_single, HR_mean_single, CLL_mean_single))
-

@@ -41,7 +41,7 @@ warnings.simplefilter('ignore')
 
 parser = argparse.ArgumentParser(description='Inductive')
 
-parser.add_argument('-e', type=int, dest="epoch_number", default=1, help="Number of Epochs")
+parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
 parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
@@ -369,17 +369,17 @@ if single_link:
             targets.append(neighbour_id)
             std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,sampling_method,
                                                                         is_prior=True)
-        
+
             re_adj_prior_sig = torch.sigmoid(re_adj_prior)
             pred_single_link.extend([re_adj_prior_sig[idd, neighbour_id].tolist()])
             true_single_link.extend([org_adj[idd, neighbour_id].tolist()])
             ####### end of A0 and A1
     else:
-        
+
         re_adj_recog_sig = torch.sigmoid(re_adj_recog)
         pred_single_link.extend(re_adj_recog_sig[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
         true_single_link.extend(org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-    
+
 
     auc, val_acc, val_ap, precision, recall, HR, CLL = roc_auc_single(pred_single_link, true_single_link)
     auc_list_single.append(auc)
@@ -414,7 +414,7 @@ if multi_link:
 
 
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi))
-    
+
 
 if multi_single_link_bl:
     auc_mean_multi_single = statistics.mean(auc_list_multi_single)
@@ -424,8 +424,8 @@ if multi_single_link_bl:
     recall_mean_multi_single = statistics.mean(recall_list_multi_single)
     HR_mean_multi_single = statistics.mean(HR_list_multi_single)
     CLL_mean_multi_single = np.mean(CLL_list_multi_single)
-    
-    
+
+
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi_single, val_acc_mean_multi_single, val_ap_mean_multi_single, precision_mean_multi_single, recall_mean_multi_single, HR_mean_multi_single, CLL_mean_multi_single))
 
 
@@ -445,4 +445,3 @@ if single_link:
         writer.writerow([auc_mean_single,val_acc_mean_single,val_ap_mean_single,precision_mean_single,recall_mean_single,HR_mean_single,CLL_mean_single])
 
     print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_single, val_acc_mean_single, val_ap_mean_single, precision_mean_single, recall_mean_single, HR_mean_single, CLL_mean_single))
-
