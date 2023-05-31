@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='ACM')
+parser.add_argument('--dataSet', type=str, default='cora')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -85,7 +85,7 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=False,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="importance_sampling", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
+parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
 parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
 
 
@@ -257,18 +257,18 @@ for i in sample_list:
 
 
     if multi_link:
-        adj_list_copy_1 = copy.deepcopy(org_adj)
-        # if we want to set all potential edges to 1
-        if disjoint_transductive_inductive:
-            adj_list_copy_1[idd, testId] = 1
-            adj_list_copy_1[testId, idd] = 1
-        else:
+        # adj_list_copy_1 = copy.deepcopy(org_adj)
+        # # if we want to set all potential edges to 1
+        # if disjoint_transductive_inductive:
+        #     adj_list_copy_1[idd, testId] = 1
+        #     adj_list_copy_1[testId, idd] = 1
+        # else:
 
-            adj_list_copy_1[idd, :] = 1
-            adj_list_copy_1[:, idd] = 1
+        #     adj_list_copy_1[idd, :] = 1
+        #     adj_list_copy_1[:, idd] = 1
 
-        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
+        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+        #                                                             is_prior=False)
 
 
 
@@ -293,8 +293,8 @@ for i in sample_list:
 
         # run prior
         adj_list_copy = copy.deepcopy(org_adj)
-        adj_list_copy[idd, :] = 0  # set all the neigbours to 0
-        adj_list_copy[:, idd] = 0  # set all the neigbours to 0
+        adj_list_copy[idd, :] = 1  # set all the neigbours to 0
+        adj_list_copy[:, idd] = 1  # set all the neigbours to 0
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     targets, sampling_method, is_prior=True)
 
