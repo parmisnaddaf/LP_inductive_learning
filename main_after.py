@@ -139,8 +139,8 @@ inductive_pn, z_p = helper.train_PNModel(dataCenter_kdd, features_kdd.to(device)
 
 # Split A into test and train
 trainId = getattr(dataCenter_kdd, ds + '_train')
-# testId = getattr(dataCenter_kdd, ds + '_test')
-testId = trainId
+testId = getattr(dataCenter_kdd, ds + '_test')
+# testId = trainId
 
 
 
