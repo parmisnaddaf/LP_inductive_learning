@@ -16,7 +16,6 @@ import csv
 
 import numpy as np
 from scipy.stats import multivariate_normal
-from torch_geometric.nn import GAE, VGAE, APPNP
 from torch.nn.functional import normalize
 
 

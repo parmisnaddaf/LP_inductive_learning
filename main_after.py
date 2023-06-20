@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='ACM')
+parser.add_argument('--dataSet', type=str, default='citeseer')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
@@ -85,7 +85,7 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="monte", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
+parser.add_argument('--sampling_method', dest="sampling_method", default="importance_sampling", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
 parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
 
 
@@ -257,36 +257,38 @@ for i in sample_list:
 
 
     if multi_link:
-        # adj_list_copy_1 = copy.deepcopy(org_adj)
-        # # if we want to set all potential edges to 1
-        # if disjoint_transductive_inductive:
-        #     adj_list_copy_1[idd, testId] = 1
-        #     adj_list_copy_1[testId, idd] = 1
-        # else:
+        adj_list_copy_1 = copy.deepcopy(org_adj)
+        # if we want to set all potential edges to 1
+        if disjoint_transductive_inductive:
+            adj_list_copy_1[idd, testId] = 1
+            adj_list_copy_1[testId, idd] = 1
+        else:
 
-        #     adj_list_copy_1[idd, :] = 1
-        #     adj_list_copy_1[:, idd] = 1
+            adj_list_copy_1[idd, :] = 1
+            adj_list_copy_1[:, idd] = 1
 
-        # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-        #                                                             is_prior=False)
+        std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
+                                                                    is_prior=False)
 
 
 
-        true_multi_links = org_adj[idd].nonzero()
-        false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links[0])))
+        true_multi_links = org_adj[idd].nonzero()[0]
+        if len(true_multi_links) != 1:
+            true_multi_links= true_multi_links[: len(true_multi_links)//2]
+        false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links)))
 
-        target_list = [[idd, i] for i in list(true_multi_links[0])]
+        target_list = [[idd, i] for i in list(true_multi_links)]
         target_list.extend([[idd, i] for i in list(false_multi_links)])
         target_list = np.array(target_list)
 
-        # # # run rec to update q
+        # # # run rec to update q for target edges only
         # adj_list_copy_1 = copy.deepcopy(org_adj)
         # adj_list_copy_1[target_list[:,0], target_list[:,1]] = 1 # set target edges to 1
         # adj_list_copy_1[target_list[:,1], target_list[:,0]] = 1 # set target edges to 1
         # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
         #                                                             is_prior=False)
 
-        targets = list(true_multi_links[0])
+        targets = list(true_multi_links)
         targets.extend(list(false_multi_links))
         targets.append(idd)
 
@@ -298,15 +300,15 @@ for i in sample_list:
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     targets, sampling_method, is_prior=True)
 
-        ###################################################
-        # run monte with 1 and do softmax
-        adj_list_copy[target_list[:,0], target_list[:,1]] = 1  # set all the neigbours to 1
-        adj_list_copy[target_list[:,1], target_list[:,0]] = 1  # set all the neigbours to 1
-        std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets, sampling_method, is_prior=True)
+        # ###################################################
+        # # run monte with 1 and do softmax
+        # adj_list_copy[target_list[:,0], target_list[:,1]] = 1  # set all the neigbours to 1
+        # adj_list_copy[target_list[:,1], target_list[:,0]] = 1  # set all the neigbours to 1
+        # std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
+        #                                                             targets, sampling_method, is_prior=True)
 
-        # #softmax
-        re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
+        # # #softmax
+        # re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
         #########################################################
 
         if prior_only:
