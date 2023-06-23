@@ -1157,7 +1157,7 @@ class PN_FrameWork(torch.nn.Module):
         self.dropout = torch.nn.Dropout(0)
         self.reset_parameters()
 
-    def forward(self, adj, x, targets, sampling_method, is_prior, train=True):
+    def forward(self, adj, x, target_edges, sampling_method, is_prior, train=True):
 
         if train:
             z_0 = self.get_z(x, self.latent_dim)  # attribute encoder
@@ -1178,24 +1178,23 @@ class PN_FrameWork(torch.nn.Module):
                 
                 if sampling_method == "normalized":
 
-                    A0 = self.run_monte(generated_adj, x, adj, targets)
-                    A1 = self.run_importance_sampling(generated_adj, x, adj, targets)
+                    A0 = self.run_monte(generated_adj, x, adj, target_edges)
+                    A1 = self.run_importance_sampling(generated_adj, x, adj, target_edges)
                     
                     # get softmax and return
                     generated_adj = torch.exp(A1) / (torch.exp(A0) + torch.exp(A1))
 
                 #if we use deterministic
                 elif sampling_method=='monte':
-                    generated_adj = self.run_monte(generated_adj, x, adj, targets)
+                    generated_adj = self.run_monte(generated_adj, x, adj, target_edges)
                     
                 elif sampling_method == 'importance_sampling':
-                    generated_adj = self.run_importance_sampling(generated_adj, x, adj, targets)
+                    generated_adj = self.run_importance_sampling(generated_adj, x, adj, target_edges)
                     
                 else: 
                     # deterministic
-                    targets = np.array(targets)
-                    target_node = np.array([targets[-1]] * targets.shape[0]) 
-                    target_edges = np.stack((targets, target_node), axis=1)[:-1]
+                    flattened_array = np.concatenate(target_edges)
+                    targets = np.unique(flattened_array)
                     
                     s = generated_adj
                     
@@ -1216,19 +1215,18 @@ class PN_FrameWork(torch.nn.Module):
 
         return std_z, m_z, z, generated_adj
 
-    def run_monte(self, generated_adj, x, adj, targets):
+    def run_monte(self, generated_adj, x, adj, target_edges):
         
         # make edge list from the ends of the target nodes
-        targets = np.array(targets)
-        target_node = np.array([targets[-1]] * targets.shape[0]) 
-        target_edges = np.stack((targets, target_node), axis=1)[:-1]
+        flattened_array = np.concatenate(target_edges)
+        targets = np.unique(flattened_array)
         
         s = generated_adj
         
         generated_adj_sig = torch.sigmoid(generated_adj)
-        p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
-        p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
-        cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+        # p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
+        # p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
+        # cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
         sum_cll = cll
         # with open('./results_csv/results_CLL.csv', 'w', newline="\n") as f:
         #     writer = csv.writer(f)
@@ -1240,36 +1238,37 @@ class PN_FrameWork(torch.nn.Module):
             z = self.dropout(z)
             generated_adj = self.generator(z)
             generated_adj_sig = torch.sigmoid(generated_adj)
-            p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
-            p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
-            cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+            # p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
+            # p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
+            # cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
       
-            sum_cll += cll
+            # sum_cll += cll
             s += generated_adj
             
             
         generated_adj = s / num_it
-        avg_cll = sum_cll/num_it
-        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
-            writer = csv.writer(f)
-            writer.writerow(['average:',avg_cll])
+        # avg_cll = sum_cll/num_it
+        # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow(['average:',avg_cll])
 
 
         return generated_adj
 
-    def run_importance_sampling(self, generated_adj, x, adj, targets):
-
-        targets = np.array(targets)
-        target_node = np.array([targets[-1]] * targets.shape[0]) 
-        target_edges = np.stack((targets, target_node), axis=1)[:-1]
+    def run_importance_sampling(self, generated_adj, x, adj, target_edges):
+        
+        # find involved nodes
+        flattened_array = np.concatenate(target_edges)
+        targets = np.unique(flattened_array)
+         
         
         s = generated_adj
         
         generated_adj_sig = torch.sigmoid(generated_adj)
-        p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
-        p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
-        cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
-        sum_cll = cll
+        # p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
+        # p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
+        # cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+        # sum_cll = cll
         num_it = 30
         for i in range(num_it - 1):
 
@@ -1288,10 +1287,10 @@ class PN_FrameWork(torch.nn.Module):
             generated_adj = self.generator(z_s)
             
             generated_adj_sig = torch.sigmoid(generated_adj)
-            p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
-            p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
-            cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
-            sum_cll += cll
+            # p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
+            # p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
+            # cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+            # sum_cll += cll
 
 
             log_generated_adj = torch.log(torch.sigmoid(generated_adj))
@@ -1302,10 +1301,10 @@ class PN_FrameWork(torch.nn.Module):
 
             s += generated_adj_final
         generated_adj = s / num_it
-        avg_cll = sum_cll/num_it
-        with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
-            writer = csv.writer(f)
-            writer.writerow(['average:',avg_cll])
+        # avg_cll = sum_cll/num_it
+        # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow(['average:',avg_cll])
         return generated_adj
 
     def kld_d(self, m0, s0, m1, s1):

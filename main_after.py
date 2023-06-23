@@ -164,15 +164,6 @@ HR_list_single = []
 CVAE_list_single = []
 CLL_list_single = []
 
-auc_list_multi_single = []
-val_acc_list_multi_single = []
-val_ap_list_multi_single = []
-precision_list_multi_single = []
-recall_list_multi_single = []
-HR_list_multi_single = []
-CVAE_list_multi_single = []
-CLL_list_multi_single = []
-
 
 
 prior_only = False
@@ -185,18 +176,15 @@ elif method == 'single':
     single_link = True
     multi_link = False
     multi_single_link_bl = False
-else:
-    single_link = False
-    multi_link = False
-    multi_single_link_bl = True
+
+
+
 
 
 pred_single_link = []
 true_single_link = []
 pred_multi_single_link = []
 true_multi_single_link = []
-
-
 
 targets = []
 sampling_method = args.sampling_method
@@ -210,7 +198,7 @@ if disjoint_transductive_inductive:
     org_adj[i_list, j_list] = 0  # set all the in between edges to 0
 
 # run recognition separately
-std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets, sampling_method,
+std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, [], sampling_method,
                                                             is_prior=False)
 
 # run prior network separately
@@ -221,9 +209,9 @@ neighbour_list = res[1][index]
 sample_list = random.sample(range(0, len(idd_list)), 100)
 
 
-with open ('./results_csv/results_CLL.csv','w') as f:
-    wtr = csv.writer(f)
-    wtr.writerow(['','q'])
+# with open ('./results_csv/results_CLL.csv','w') as f:
+#     wtr = csv.writer(f)
+#     wtr.writerow(['','q'])
 xx = 0
 for i in sample_list:
     print(xx)
@@ -239,11 +227,10 @@ for i in sample_list:
         adj_list_copy[idd, neighbour_id] = 0  # find a test edge and set it to 0
         adj_list_copy[neighbour_id, idd] = 0  # find a test edge and set it to 0
 
-        targets.append(idd)
-        targets.append(neighbour_id)
+        target_list = [[idd, neighbour_id]]
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets, sampling_method,  is_prior=True)
+                                                                    target_list, sampling_method,  is_prior=True)
         if prior_only:
             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
                              idd, neighbour_id).detach().numpy()
@@ -257,29 +244,53 @@ for i in sample_list:
 
 
     if multi_link:
-        adj_list_copy_1 = copy.deepcopy(org_adj)
-        # if we want to set all potential edges to 1
-        if disjoint_transductive_inductive:
-            adj_list_copy_1[idd, testId] = 1
-            adj_list_copy_1[testId, idd] = 1
-        else:
+        subgraph_prediction = True
+        if subgraph_prediction:
+            e_list, n_list , nodes = get_subgraph(org_adj, idd, 2)
+            targets = nodes
+            target_list = np.array(e_list + n_list)
+            
+            
+            adj_list_copy_1 = copy.deepcopy(org_adj)
+            # if we want to set all potential edges to 1
+            adj_list_copy_1[target_list] = 1
+            adj_list_copy_1[target_list] = 1
+            
+        else: 
 
-            adj_list_copy_1[idd, :] = 1
-            adj_list_copy_1[:, idd] = 1
+            true_multi_links = org_adj[idd].nonzero()[0]
+            
+            # if we wanna take half 
+            if len(true_multi_links) != 1:
+                true_multi_links= true_multi_links[: len(true_multi_links)//2]
+                
+            false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links)))
+
+            target_list = [[idd, i] for i in list(true_multi_links)]
+            target_list.extend([[idd, i] for i in list(false_multi_links)])
+            target_list = np.array(target_list)
+            
+            
+            targets = list(true_multi_links)
+            targets.extend(list(false_multi_links))
+            targets.append(idd)
+            
+            
+            
+            adj_list_copy_1 = copy.deepcopy(org_adj)
+            # if we want to set all potential edges to 1
+            if disjoint_transductive_inductive:
+                adj_list_copy_1[idd, testId] = 1
+                adj_list_copy_1[testId, idd] = 1
+            else:
+                adj_list_copy_1[idd, :] = 1
+                adj_list_copy_1[:, idd] = 1
+
+        
+
 
         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
-                                                                    is_prior=False)
-
-
-
-        true_multi_links = org_adj[idd].nonzero()[0]
-        if len(true_multi_links) != 1:
-            true_multi_links= true_multi_links[: len(true_multi_links)//2]
-        false_multi_links = np.array(random.sample(list(np.nonzero(org_adj[idd] == 0)[0]), len(true_multi_links)))
-
-        target_list = [[idd, i] for i in list(true_multi_links)]
-        target_list.extend([[idd, i] for i in list(false_multi_links)])
-        target_list = np.array(target_list)
+                                                                        is_prior=False)    
 
         # # # run rec to update q for target edges only
         # adj_list_copy_1 = copy.deepcopy(org_adj)
@@ -288,24 +299,28 @@ for i in sample_list:
         # std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
         #                                                             is_prior=False)
 
-        targets = list(true_multi_links)
-        targets.extend(list(false_multi_links))
-        targets.append(idd)
+
 
 
         # # run prior
         adj_list_copy = copy.deepcopy(org_adj)
-        adj_list_copy[idd, :] = 0  # set all the neigbours to 0
-        adj_list_copy[:, idd]  = 0  # set all the neigbours to 0
+        if subgraph_prediction:
+            
+            adj_list_copy_1[target_list] = 0
+            adj_list_copy_1[target_list] = 0
+        else:
+            adj_list_copy[idd, :] = 0  # set all the neigbours to 0
+            adj_list_copy[:, idd]  = 0  # set all the neigbours to 0
+            
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                    targets, sampling_method, is_prior=True)
+                                                                    target_list, sampling_method, is_prior=True)
 
         # ###################################################
         # # run monte with 1 and do softmax
         # adj_list_copy[target_list[:,0], target_list[:,1]] = 1  # set all the neigbours to 1
         # adj_list_copy[target_list[:,1], target_list[:,0]] = 1  # set all the neigbours to 1
         # std_z_prior_1, m_z_prior_1, z_prior_1, re_adj_prior_1 = run_network(features_kdd, adj_list_copy, inductive_pn,
-        #                                                             targets, sampling_method, is_prior=True)
+        #                                                             target_list, sampling_method, is_prior=True)
 
         # # #softmax
         # re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
@@ -323,67 +338,14 @@ for i in sample_list:
 
 
 
-        auc, val_acc, val_ap, precision, recall, HR, CLL = get_metrices(target_list, org_adj, re_adj_prior)
+        auc, val_acc, val_ap, precision, recall, HR = get_metrices(target_list, org_adj, re_adj_prior)
         auc_list_multi.append(auc)
         val_acc_list_multi.append(val_acc)
         val_ap_list_multi.append(val_ap)
         precision_list_multi.append(precision)
         recall_list_multi.append(recall)
         HR_list_multi.append(HR)
-        CLL_list_multi = CLL
-
-
-    # if multi_single_link_bl:
-    #     for nn in org_adj[idd].nonzero()[0]:
-    #         adj_list_copy = copy.deepcopy(org_adj)
-    #         # set all the neighbours expect the test one to 0 for recognition network
-    #         adj_list_copy, false_count = get_single_link_evidence(adj_list_copy, idd,
-    #                                                               np.delete(adj_list_copy[idd].nonzero()[0],
-    #                                                                         np.where(adj_list_copy[idd].nonzero()[
-    #                                                                                      0] == nn)))
-    #         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-    #                                                                     targets, sampling_method,
-    #                                                                     is_prior=False)
-
-    #         adj_list_copy[idd, nn] = 0  # find a test edge and set it to 0
-    #         adj_list_copy[nn, idd] = 0  # find a test edge and set it to 0
-
-    #         targets.append(idd)
-    #         targets.append(nn)
-    #         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
-    #                                                                     targets, sampling_method, is_prior=True)
-
-    #         if prior_only:
-    #             CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(),
-    #                              org_adj, idd, neighbour_id).detach().numpy()
-    #         else:
-    #             CVAE = CVAE_loss(m_z_recog, m_z_prior, std_z_recog, std_z_prior, re_adj_prior.detach().numpy(),
-    #                              org_adj, idd, neighbour_id).detach().numpy()
-    #         CVAE_list_multi_single.append(CVAE)
-
-    #         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-    #         pred_multi_single_link.append(re_adj_prior_sig[idd, nn].tolist())
-    #         true_multi_single_link.append(org_adj[idd, nn].tolist())
-
-    #     # Get false edges
-    #     std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, targets,
-    #                                                                  sampling_method, is_prior=False)
-    #     re_adj_recog_sig = torch.sigmoid(re_adj_recog)
-    #     res = np.argwhere(org_adj[idd] == 0)
-    #     np.random.shuffle(res)
-    #     index = np.where(np.isin(res[:, 0], testId))  # only one node of the 2 ends of an edge needs to be in testId
-    #     test_neg_edges = res[index]
-    #     true_multi_single_link.extend(
-    #         org_adj[test_neg_edges[:false_count, 0], test_neg_edges[:false_count, 1]].tolist())
-    #     auc, val_acc, val_ap, conf_mtrx, precision, recall, HR, CLL = roc_auc_single(pred_multi_single_link,
-    #                                                                             true_multi_single_link)
-    #     auc_list_multi_single.append(auc)
-    #     val_acc_list_multi_single.append(val_acc)
-    #     val_ap_list_multi_single.append(val_ap)
-    #     precision_list_multi_single.append(precision)
-    #     recall_list_multi_single.append(recall)
-    #     HR_list_multi_single.append(HR)
-    #     CLL_list_multi.append(CLL)
+        # CLL_list_multi = CLL
 
 
 set_to_one = True
@@ -402,14 +364,13 @@ if single_link:
             adj_list_copy = copy.deepcopy(org_adj)
             adj_list_copy[idd, neighbour_id] = 1
             adj_list_copy[neighbour_id, idd] = 1
-            targets.append(idd)
-            targets.append(neighbour_id)
+            target_list = [[idd, neighbour_id]]
             
             std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets, sampling_method,
+                                                                        [], sampling_method,
                                                                         is_prior=False)
             
-            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,sampling_method,
+            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, target_list,sampling_method,
                                                                         is_prior=True)
 
             re_adj_prior_sig = torch.sigmoid(re_adj_prior)
@@ -432,11 +393,10 @@ if single_link:
             adj_list_copy[idd, neighbour_id] = 1
             adj_list_copy[neighbour_id, idd] = 1
             std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
-                                                                        targets, sampling_method,
+                                                                        [], sampling_method,
                                                                         is_prior=False)
-            targets.append(idd)
-            targets.append(neighbour_id)
-            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, targets,sampling_method,
+            target_list = [[idd, neighbour_id]]
+            std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, target_list,sampling_method,
                                                                         is_prior=True)
 
             re_adj_prior_sig = torch.sigmoid(re_adj_prior)
@@ -460,9 +420,6 @@ if single_link:
     CLL_list_single.append(CLL)
 
 
-
-
-
 # Print results
 print(save_recons_adj_name)
 
@@ -473,29 +430,13 @@ if multi_link:
     precision_mean_multi = statistics.mean(precision_list_multi)
     recall_mean_multi = statistics.mean(recall_list_multi)
     HR_mean_multi = statistics.mean(HR_list_multi)
-    CLL_mean_multi = statistics.mean(CLL_list_multi)
 
     with open('./results_csv/results.csv', 'a', newline="\n") as f:
         writer = csv.writer(f)
         writer.writerow([save_recons_adj_name,"","","","","",""])
-        writer.writerow([auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi])
+        writer.writerow([auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, []])
 
-
-
-    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, CLL_mean_multi))
-
-
-if multi_single_link_bl:
-    auc_mean_multi_single = statistics.mean(auc_list_multi_single)
-    val_acc_mean_multi_single = statistics.mean(val_acc_list_multi_single)
-    val_ap_mean_multi_single = statistics.mean(val_ap_list_multi_single)
-    precision_mean_multi_single = statistics.mean(precision_list_multi_single)
-    recall_mean_multi_single = statistics.mean(recall_list_multi_single)
-    HR_mean_multi_single = statistics.mean(HR_list_multi_single)
-    CLL_mean_multi_single = np.mean(CLL_list_multi_single)
-
-
-    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi_single, val_acc_mean_multi_single, val_ap_mean_multi_single, precision_mean_multi_single, recall_mean_multi_single, HR_mean_multi_single, CLL_mean_multi_single))
+    print("auc= %.3f , acc= %.3f ap= %.3f , precision= %.3f , recall= %.3f , HR= %.3f , CLL= %.3f" %(auc_mean_multi, val_acc_mean_multi, val_ap_mean_multi, precision_mean_multi, recall_mean_multi, HR_mean_multi, 0.000))
 
 
 if single_link:

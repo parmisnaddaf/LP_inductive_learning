@@ -25,153 +25,8 @@ from scipy import sparse
 import dgl
 import torch.distributions as tdist
 from scipy.stats import multivariate_normal
+from itertools import combinations
 
-
-def get_gnn_embeddings(gnn_model, dataCenter, ds):
-    print('Loading embeddings from trained GraphSAGE model.')
-    features = np.zeros((len(getattr(dataCenter, ds + '_labels')), gnn_model.out_size))
-    nodes = np.arange(len(getattr(dataCenter, ds + '_labels'))).tolist()
-    b_sz = 500
-    batches = math.ceil(len(nodes) / b_sz)
-    embs = []
-    for index in range(batches):
-        nodes_batch = nodes[index * b_sz:(index + 1) * b_sz]
-        embs_batch = gnn_model(nodes_batch)
-        assert len(embs_batch) == len(nodes_batch)
-        embs.append(embs_batch)
-        # if ((index+1)*b_sz) % 10000 == 0:
-        #     print(f'Dealed Nodes [{(index+1)*b_sz}/{len(nodes)}]')
-
-    assert len(embs) == batches
-    embs = torch.cat(embs, 0)
-    assert len(embs) == len(nodes)
-    print('Embeddings loaded.')
-    return embs.detach()
-
-
-def train_classification(dataCenter, graphSage, classification, ds, device, max_vali_f1, name, epochs=800):
-    print('Training Classification ...')
-    c_optimizer = torch.optim.SGD(classification.parameters(), lr=0.5)
-    # train classification, detached from the current graph
-    # classification.init_params()
-    b_sz = 50
-    train_nodes = getattr(dataCenter, ds + '_train')
-    labels = getattr(dataCenter, ds + '_labels')
-    features = get_gnn_embeddings(graphSage, dataCenter, ds)
-    for epoch in range(epochs):
-        train_nodes = shuffle(train_nodes)
-        batches = math.ceil(len(train_nodes) / b_sz)
-        visited_nodes = set()
-        for index in range(batches):
-            nodes_batch = train_nodes[index * b_sz:(index + 1) * b_sz]
-            visited_nodes |= set(nodes_batch)
-            labels_batch = labels[nodes_batch]
-            embs_batch = features[nodes_batch]
-
-            logists = classification(embs_batch)
-            loss = -torch.sum(logists[range(logists.size(0)), labels_batch], 0)
-            loss /= len(nodes_batch)
-            print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Dealed Nodes [{}/{}] '.format(epoch + 1, epochs, index,
-                                                                                            batches, loss.item(),
-                                                                                            len(visited_nodes),
-                                                                                            len(train_nodes)))
-
-            loss.backward()
-
-            nn.utils.clip_grad_norm_(classification.parameters(), 5)
-            c_optimizer.step()
-            c_optimizer.zero_grad()
-
-        max_vali_f1 = evaluate(dataCenter, ds, graphSage, classification, device, max_vali_f1, name, epoch)
-    return classification, max_vali_f1
-
-
-def apply_model(dataCenter, ds, graphSage, classification, unsupervised_loss, b_sz, unsup_loss, device, learn_method):
-    test_nodes = getattr(dataCenter, ds + '_test')
-    val_nodes = getattr(dataCenter, ds + '_val')
-    train_nodes = getattr(dataCenter, ds + '_train')
-    labels = getattr(dataCenter, ds + '_labels')
-
-    if unsup_loss == 'margin':
-        num_neg = 6
-    elif unsup_loss == 'normal':
-        num_neg = 100
-    else:
-        print("unsup_loss can be only 'margin' or 'normal'.")
-        sys.exit(1)
-
-    train_nodes = shuffle(train_nodes)
-
-    models = [graphSage, classification]
-    params = []
-    for model in models:
-        for param in model.parameters():
-            if param.requires_grad:
-                params.append(param)
-
-    optimizer = torch.optim.SGD(params, lr=0.7)
-    optimizer.zero_grad()
-    for model in models:
-        model.zero_grad()
-
-    batches = math.ceil(len(train_nodes) / b_sz)
-
-    visited_nodes = set()
-    for index in range(batches):
-        nodes_batch = train_nodes[index * b_sz:(index + 1) * b_sz]
-
-        # extend nodes batch for unspervised learning
-        # no conflicts with supervised learning
-        nodes_batch = np.asarray(list(unsupervised_loss.extend_nodes(nodes_batch, num_neg=num_neg)))
-        visited_nodes |= set(nodes_batch)
-
-        # get ground-truth for the nodes batch
-        labels_batch = labels[nodes_batch]
-
-        # feed nodes batch to the graphSAGE
-        # returning the nodes embeddings
-
-        embs_batch = graphSage(nodes_batch)
-
-        if learn_method == 'sup':
-            # superivsed learning
-            logists = classification(embs_batch)
-            loss_sup = -torch.sum(logists[range(logists.size(0)), labels_batch], 0)
-            loss_sup /= len(nodes_batch)
-            loss = loss_sup
-        elif learn_method == 'plus_unsup':
-            # superivsed learning
-            logists = classification(embs_batch)
-            loss_sup = -torch.sum(logists[range(logists.size(0)), labels_batch], 0)
-            loss_sup /= len(nodes_batch)
-            # unsuperivsed learning
-            if unsup_loss == 'margin':
-                loss_net = unsupervised_loss.get_loss_margin(embs_batch, nodes_batch)
-            elif unsup_loss == 'normal':
-                loss_net = unsupervised_loss.get_loss_sage(embs_batch, nodes_batch)
-            loss = loss_sup + loss_net
-        else:
-            if unsup_loss == 'margin':
-                loss_net = unsupervised_loss.get_loss_margin(embs_batch, nodes_batch)
-            elif unsup_loss == 'normal':
-                loss_net = unsupervised_loss.get_loss_sage(embs_batch, nodes_batch)
-            loss = loss_net
-        print('Step [{}/{}], Loss: {:.4f}, Dealed Nodes [{}/{}] '.format(index + 1, batches, loss.item(),
-                                                                         len(visited_nodes), len(train_nodes)))
-
-        loss.backward()
-        for model in models:
-            nn.utils.clip_grad_norm_(model.parameters(), 5)
-        optimizer.step()
-
-        optimizer.zero_grad()
-        for model in models:
-            model.zero_grad()
-
-    return graphSage, classification
-
-
-###############################################
 
 
 class node_mlp(torch.nn.Module):
@@ -725,14 +580,14 @@ def roc_auc_estimator(target_edges, reconstructed_adj, origianl_agjacency):
     
     pred = np.array(prediction)
     
-    q_multi = []
-    with open('./results_csv/results_CLL.csv', newline='') as f:
-        reader = csv.DictReader(f)
-        for q in reader:
-            q_multi.append(float(q['q'])
-)            
-    cll = np.log(np.array(q_multi))
-    return auc, acc, ap, precision, recall, HR, cll
+#     q_multi = []
+#     with open('./results_csv/results_CLL.csv', newline='') as f:
+#         reader = csv.DictReader(f)
+#         for q in reader:
+#             q_multi.append(float(q['q'])
+# )            
+#     cll = np.log(np.array(q_multi))
+    return auc, acc, ap, precision, recall, HR
 
 
 
@@ -785,86 +640,6 @@ def roc_auc_single(prediction, true_label):
     
     return auc, acc, ap, precision, recall, HR, cll
 
-
-# def mask_test_edges(adj, testId, trainId):
-#     # Remove diagonal elements
-#     adj = adj - sp.dia_matrix((adj.diagonal()[np.newaxis, :], [0]), shape=adj.shape)
-#     # adj.eliminate_zeros()
-#     # Check that diag is zero:
-#     # assert np.diag(adj.todense()).sum() == 0
-#     assert adj.diagonal().sum() == 0
-
-#     A = adj.todense()
-#     test_edges = []
-#     train_edges = []
-#     test_edges_false = []
-#     train_edges_false = []
-#     for i in range(len(A)):
-#         for j in range(len(A[0:])):
-#             if i == j:
-#                 continue
-#             if i in testId and j in testId:
-#                 if A[i,j] == 1:
-#                     test_edges.append([i,j])                   
-#             elif i in trainId and j in trainId:
-#                 if A[i,j] == 1:
-#                     train_edges.append([i,j])
-#     print("Finished Test and Train")
-
-
-#     while len(test_edges_false) < len(test_edges):
-#         for i in range(len(A)):
-#             for j in range(len(A[0:])):
-#                 if i == j:
-#                     continue
-#                 if i in testId and j in testId:
-#                     if A[i,j] == 0:
-#                         test_edges_false.append([i,j])
-#     print("Finished Test False")
-
-#     while len(train_edges_false) < len(train_edges):
-#         for i in range(len(A)):
-#             for j in range(len(A[0:])):
-#                 if i == j:
-#                     continue
-#                 if i in trainId and j in trainId:
-#                     if A[i,j] == 0:
-#                         train_edges_false.append([i,j])  
-#     print("Finished Train False")
-
-
-# def mask_test_edges(adj, testId, trainId):
-#     adj_list_test = sparse.csr_matrix(adj)[testId]
-#     adj_list_test = adj_list_test[:, testId]
-#     adj_list_test_i , adj_list_test_j = adj_list_test.nonzero()
-#     test_edges = []
-#     for i in range(len(adj_list_test_i)):
-#         test_edges.append([adj_list_test_i[i], adj_list_test_j[i]])
-
-#     test_edges_false = []
-#     adj_list_test__false_i , adj_list_test_false_j = sparse.find(adj_list_test==0)[:2]
-#     i = 0
-#     while len(test_edges_false) < len(test_edges):
-#         test_edges_false.append([adj_list_test__false_i[i] , adj_list_test_false_j[i]])
-#         i +=1
-
-
-#     adj_list_train = sparse.csr_matrix(adj)[trainId]
-#     adj_list_train = adj_list_train[:, trainId]
-#     adj_list_train_i , adj_list_train_j = adj_list_train.nonzero()
-#     train_edges = []
-#     for i in range(len(adj_list_train_i)):
-#         train_edges.append([adj_list_train_i[i], adj_list_train_j[i]])
-
-#     train_edges_false = []
-#     adj_list_tain__false_i , adj_list_train_false_j = sparse.find(adj_list_train==0)[:2]
-#     i = 0
-#     while len(train_edges_false) < len(train_edges):
-#         train_edges_false.append([adj_list_tain__false_i[i] , adj_list_train_false_j[i]])
-#         i +=1
-
-
-#     return test_edges_false, test_edges, train_edges_false, train_edges
 
 
 def mask_test_edges(adj, testId, trainId, validId):
@@ -1278,3 +1053,92 @@ def get_single_link_evidence(adj_recog, idd, neighbours):
         adj_recog[idd, n] = 0
         adj_recog[n, idd] = 0
     return adj_recog, len(neighbours)
+
+
+
+
+def ismember(a, b, tol=5):
+    rows_close = np.all(np.round(a - b[:, None], tol) == 0, axis=-1)
+    return np.any(rows_close)
+
+
+
+
+
+def complete_subgraph_edges(nodes):
+    edges = [list(edge) for edge in combinations(nodes, 2)]
+    edges.extend([edge[::-1] for edge in edges])  # Add backward edges
+    return edges
+
+
+
+
+def get_subgraph(adj, selected_node, k):
+    adj = sparse.csr_matrix(adj)
+    g = dgl.from_scipy(adj)
+    # g.add_edges(g.nodes(), g.nodes())
+    sg, inverse_indices = dgl.khop_out_subgraph(g, selected_node, k)
+    
+    e_list = []
+    nodes = set()
+    for i in range(len(sg.edges()[0])):
+        source =g.edges()[0][sg.edata[dgl.EID]][i].item()    
+        destination =g.edges()[1][sg.edata[dgl.EID]][i].item()
+        # if source != destination:
+        e_list.append([source,destination])
+        nodes.add(source)
+        nodes.add(destination)
+    
+    # e_list = e_list[: len(e_list)//2]
+    nodes = list(nodes)
+    
+    all_possible_edges = complete_subgraph_edges(nodes)
+    all_negatives = [elem for elem in all_possible_edges if elem not in e_list]
+    random.shuffle(all_negatives)
+    random.shuffle(e_list)
+    
+    if len(e_list) > 2:
+        e_list = e_list[: len(e_list)//2]
+    
+        
+    if len(all_negatives) >= len(e_list):
+        
+        n_list = all_negatives[:len(e_list)]
+        
+    else:
+        indices = np.nonzero(adj)
+        all_edges = np.column_stack(indices)
+        
+        n_list = all_negatives
+        while len(n_list) < len(e_list):
+            idx_i = selected_node
+            idx_j = np.random.randint(0, adj.shape[0])
+            if idx_i == idx_j:
+                continue
+            if ismember([idx_i, idx_j], np.array(e_list)):
+                continue
+            
+            if ismember([idx_i, idx_j], all_edges):
+                continue
+
+            if n_list:
+                if ismember([idx_j, idx_i], np.array(n_list)):
+                    continue             
+        
+            n_list.append([idx_i, idx_j])
+        
+    # find nodes that appeared in the negative list
+    flattened_array = np.concatenate(n_list)
+    unique_elements = np.unique(flattened_array)
+    unique_nodes =  unique_elements.tolist()
+    nodes.extend(unique_nodes)
+
+
+    return e_list, n_list, list(set(nodes))
+
+
+
+
+
+
+
