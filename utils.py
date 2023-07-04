@@ -1097,14 +1097,15 @@ def get_subgraph(adj, selected_node, k):
     random.shuffle(all_negatives)
     random.shuffle(e_list)
     
-    if len(e_list) > 2:
-        e_list = e_list[: len(e_list)//2]
+    if len(e_list) > 2: # use half of the existing edges as target
+        e_list = e_list[: int(1 * len(e_list))]
     
         
     if len(all_negatives) >= len(e_list):
         
         n_list = all_negatives[:len(e_list)]
-        
+       
+    # if we do not have enough negative edges, pick random negative neighbour of the target node
     else:
         indices = np.nonzero(adj)
         all_edges = np.column_stack(indices)
@@ -1115,6 +1116,7 @@ def get_subgraph(adj, selected_node, k):
             idx_j = np.random.randint(0, adj.shape[0])
             if idx_i == idx_j:
                 continue
+            
             if ismember([idx_i, idx_j], np.array(e_list)):
                 continue
             
