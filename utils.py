@@ -1098,7 +1098,7 @@ def get_subgraph(adj, selected_node, k):
     random.shuffle(e_list)
     
     if len(e_list) > 2: # use half of the existing edges as target
-        e_list = e_list[: int(1 * len(e_list))]
+        e_list = e_list[: int(0.75 * len(e_list))]
     
         
     if len(all_negatives) >= len(e_list):
