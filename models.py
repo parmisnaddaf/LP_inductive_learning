@@ -1184,7 +1184,7 @@ class PN_FrameWork(torch.nn.Module):
                     # get softmax and return
                     generated_adj = torch.exp(A1) / (torch.exp(A0) + torch.exp(A1))
 
-                #if we use deterministic
+
                 elif sampling_method=='monte':
                     generated_adj = self.run_monte(generated_adj, x, adj, target_edges)
                     
@@ -1193,19 +1193,15 @@ class PN_FrameWork(torch.nn.Module):
                     
                 else: 
                     # deterministic
-                    flattened_array = np.concatenate(target_edges)
-                    targets = np.unique(flattened_array)
-                    
-                    s = generated_adj
-                    
-                    generated_adj_sig = torch.sigmoid(generated_adj)
+                    # s = generated_adj
+                    # generated_adj_sig = torch.sigmoid(generated_adj)
                     generated_adj = self.generator(m_z) # Give the mean
-                    p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
-                    p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
-                    cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
-                    with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
-                        writer = csv.writer(f)
-                        writer.writerow(['average:',cll])
+                    # p_pos = (generated_adj_sig[np.transpose(target_edges[:len(target_edges)//2])]).detach().numpy()
+                    # p_neg = (1-generated_adj_sig[np.transpose(target_edges[len(target_edges)//2:])]).detach().numpy()
+                    # cll = np.e ** (np.sum(np.log(np.concatenate((p_pos, p_neg)))))
+                    # with open('./results_csv/results_CLL.csv', 'a', newline="\n") as f:
+                    #     writer = csv.writer(f)
+                    #     writer.writerow(['average:',cll])
 
             else:
                 self.mq = m_z

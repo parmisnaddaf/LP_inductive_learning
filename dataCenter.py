@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jul 13 16:48:38 2023
+
+@author: pnaddaf
+"""
+
 import sys
 import os
 
@@ -11,6 +19,11 @@ import torch
 import json
 import pickle
 import zipfile
+
+
+import dgl
+from dgl.data import PubmedGraphDataset, CoauthorCSDataset
+
 
 
 from networkx.readwrite import json_graph
@@ -192,8 +205,15 @@ class DataCenter(object):
 
                 features = node_features_list[13].numpy()
                 labels = node_labels_list[13].numpy()
+                
+                
+                adj = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/LP_inductive_learning/datasets/PPI/A.npy")
+                features = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/LP_inductive_learning/datasets/PPI/X.npy")
+
 
                 test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
+                
+                
 
                 setattr(self, dataSet+'_test', test_indexs)
                 setattr(self, dataSet+'_val', val_indexs)
@@ -202,6 +222,28 @@ class DataCenter(object):
                 setattr(self, dataSet+'_feats', features)
                 setattr(self, dataSet+'_labels', labels)
                 setattr(self, dataSet+'_adj_lists', adj)
+                
+                
+                
+            if dataSet == "cs":
+                graph = CoauthorCSDataset()[0]
+                features = graph.ndata['feat'].numpy()
+                # Get the edges
+                src_nodes, dest_nodes = graph.edges()
+                data = np.ones(len(dest_nodes))
+                num_nodes = graph.number_of_nodes()
+                adj = sp.coo_matrix((data,(src_nodes,dest_nodes)),shape=(num_nodes,num_nodes)).toarray()
+                node_label = graph.ndata['label'].numpy()
+                test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
+
+                setattr(self, dataSet+'_test', test_indexs)
+                setattr(self, dataSet+'_val', val_indexs)
+                setattr(self, dataSet+'_train', train_indexs)
+                setattr(self, dataSet+'_labels', node_label)
+                setattr(self, dataSet+'_feats', features)
+                setattr(self, dataSet+'_adj_lists', adj)
+
+                
 
 
             if dataSet == 'cora':
@@ -358,6 +400,28 @@ class DataCenter(object):
                 setattr(self, dataSet+'_labels',np.array(node_label[:index]))
                 setattr(self, dataSet+'_adj_lists', adj[:index,:index])
                 setattr(self, dataSet+'_edge_labels', edge_labels[:index,:index].toarray())
+
+
+            if dataSet == "pubmed":
+                dataset = PubmedGraphDataset()
+                graph = dataset[0]
+                features = graph.ndata['feat'].numpy()
+                # Get the edges
+                src_nodes, dest_nodes = graph.edges()
+                data = np.ones(len(dest_nodes))
+                num_nodes = graph.number_of_nodes()
+                adj = sp.coo_matrix((data,(src_nodes,dest_nodes)),shape=(num_nodes,num_nodes)).toarray()
+                node_label = graph.ndata['label'].numpy()
+                test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
+
+                setattr(self, dataSet+'_test', test_indexs)
+                setattr(self, dataSet+'_val', val_indexs)
+                setattr(self, dataSet+'_train', train_indexs)
+                setattr(self, dataSet+'_labels', node_label)
+                setattr(self, dataSet+'_feats', features)
+                setattr(self, dataSet+'_adj_lists', adj)
+
+
 
             elif dataSet == "DBLP":
 

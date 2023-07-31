@@ -147,6 +147,7 @@ def train_PNModel(dataCenter, features, args, device):
         
         print('Finish spliting dataset to train and test. ')
     
+    
     adj_train = sp.csr_matrix(adj_train)
     graph_dgl = dgl.from_scipy(adj_train)
     graph_dgl.add_edges(graph_dgl.nodes(), graph_dgl.nodes())  # the library does not add self-loops
@@ -158,7 +159,7 @@ def train_PNModel(dataCenter, features, args, device):
     else:
         feat_train = feat_train
     
-
+    # feat_train.fill_(0)
     # randomly select 25% of the test nodes to not be in evidence
     not_evidence = random.sample(list(testId), int(0 * len(testId)))
         

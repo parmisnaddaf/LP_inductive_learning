@@ -51,14 +51,14 @@ parser = argparse.ArgumentParser(description='Inductive')
 
 parser.add_argument('-e', type=int, dest="epoch_number", default=100, help="Number of Epochs")
 parser.add_argument('--model', type=str, default='KDD')
-parser.add_argument('--dataSet', type=str, default='cora')
+parser.add_argument('--dataSet', type=str, default='pubmed')
 parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('-num_node', dest="num_node", default=-1, type=str,
                     help="the size of subgraph which is sampled; -1 means use the whole graph")
 parser.add_argument('--config', type=str, default='experiments.conf')
 parser.add_argument('-decoder_type', dest="decoder_type", default="ML_SBM",
                     help="the decoder type, Either SBM or InnerDot  or TransE or MapedInnerProduct_SBM or multi_inner_product and TransX or SBM_REL")
-parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GIN",
+parser.add_argument('-encoder_type', dest="encoder_type", default="Multi_GCN",
                     help="the encoder type, Either ,mixture_of_GCNs, mixture_of_GatedGCNs , Multi_GCN or Edge_GCN ")
 parser.add_argument('-f', dest="use_feature", default=True, help="either use features or identity matrix")
 parser.add_argument('-NofRels', dest="num_of_relations", default=1,
@@ -85,8 +85,8 @@ parser.add_argument('-is_prior', dest="is_prior", default=False, help="This flag
 parser.add_argument('-targets', dest="targets", default=[], help="This list is used for sampling")
 parser.add_argument('--disjoint_transductive_inductive', dest="disjoint_transductive_inductive", default=True,
                     help="This flag is used if want to have dijoint transductive and inductive sets")
-parser.add_argument('--sampling_method', dest="sampling_method", default="importance_sampling", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
-parser.add_argument('--method', dest="method", default="multi", help="This var shows method it could be: multi, single")
+parser.add_argument('--sampling_method', dest="sampling_method", default="deterministic", help="This var shows sampling method it could be: monte, importance_sampling, deterministic, normalized ")
+parser.add_argument('--method', dest="method", default="single", help="This var shows method it could be: multi, single")
 
 
 args = parser.parse_args()
@@ -198,8 +198,8 @@ if disjoint_transductive_inductive:
     org_adj[i_list, j_list] = 0  # set all the in between edges to 0
 
 # run recognition separately
-std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, [], sampling_method,
-                                                            is_prior=False)
+# std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, org_adj, inductive_pn, [], sampling_method,
+#                                                             is_prior=False)
 
 # run prior network separately
 res = org_adj.nonzero()
@@ -219,32 +219,28 @@ for i in sample_list:
     targets = []
     idd = idd_list[i]
     neighbour_id = neighbour_list[i]
-    adj_list_copy = copy.deepcopy(org_adj)
     neigbour_prob_single = 1
     if single_link:
+        
 
         adj_list_copy = copy.deepcopy(org_adj)
         adj_list_copy[idd, neighbour_id] = 0  # find a test edge and set it to 0
         adj_list_copy[neighbour_id, idd] = 0  # find a test edge and set it to 0
 
         target_list = [[idd, neighbour_id]]
+        # adj_list_copy.fill(0)
 
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     target_list, sampling_method,  is_prior=True)
-        if prior_only:
-            CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
-                             idd, neighbour_id).detach().numpy()
-        else:
-            CVAE = CVAE_loss(m_z_recog, m_z_prior, std_z_recog, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
-                             idd, neighbour_id).detach().numpy()
-        CVAE_list_single.append(CVAE)
+
+        CVAE_list_single.append(0)
         re_adj_prior_sig = torch.sigmoid(re_adj_prior)
         pred_single_link.append(re_adj_prior_sig[idd, neighbour_id].tolist())
         true_single_link.append(org_adj[idd, neighbour_id].tolist())
 
 
     if multi_link:
-        subgraph_prediction = True
+        subgraph_prediction = False
         if subgraph_prediction:
             e_list, n_list , nodes = get_subgraph(org_adj, idd, 2)
             targets = nodes
@@ -252,9 +248,12 @@ for i in sample_list:
             
             
             adj_list_copy_1 = copy.deepcopy(org_adj)
-            # if we want to set all potential edges to 1
-            adj_list_copy_1[target_list] = 1
-            adj_list_copy_1[target_list] = 1
+            # if we want to set all potential edges to 1            
+            target_array = np.array(target_list)
+            adj_list_copy_1[target_array[:, 0], target_array[:, 1]] = 1
+            adj_list_copy_1[target_array[:, 1], target_array[:, 0]] = 1
+            
+            
             
         else: 
 
@@ -274,9 +273,8 @@ for i in sample_list:
             targets = list(true_multi_links)
             targets.extend(list(false_multi_links))
             targets.append(idd)
-            
-            
-            
+
+
             adj_list_copy_1 = copy.deepcopy(org_adj)
             # if we want to set all potential edges to 1
             if disjoint_transductive_inductive:
@@ -285,8 +283,6 @@ for i in sample_list:
             else:
                 adj_list_copy_1[idd, :] = 1
                 adj_list_copy_1[:, idd] = 1
-
-        
 
 
         std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy_1, inductive_pn, [], sampling_method,
@@ -305,13 +301,14 @@ for i in sample_list:
         # # run prior
         adj_list_copy = copy.deepcopy(org_adj)
         if subgraph_prediction:
-            
-            adj_list_copy_1[target_list] = 0
-            adj_list_copy_1[target_list] = 0
+            target_array = np.array(target_list)
+            adj_list_copy[target_array[:, 0], target_array[:, 1]] = 0
+            adj_list_copy[target_array[:, 1], target_array[:, 0]] = 0
         else:
             adj_list_copy[idd, :] = 0  # set all the neigbours to 0
             adj_list_copy[:, idd]  = 0  # set all the neigbours to 0
             
+        # adj_list_copy.fill(0)
         std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                     target_list, sampling_method, is_prior=True)
 
@@ -326,17 +323,7 @@ for i in sample_list:
         # re_adj_prior = torch.exp(re_adj_prior_1) / (torch.exp(re_adj_prior) + torch.exp(re_adj_prior_1))
         #########################################################
 
-        if prior_only:
-            CVAE = CVAE_loss(m_z_prior, m_z_prior, std_z_prior, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
-                             idd, neighbour_id).detach().numpy()
-        else:
-            CVAE = CVAE_loss(m_z_recog, m_z_prior, std_z_recog, std_z_prior, re_adj_prior.detach().numpy(), org_adj,
-                             idd, neighbour_id).detach().numpy()
-        CVAE_list_multi.append(CVAE)
-
-        re_adj_prior_sig = torch.sigmoid(re_adj_prior)
-
-
+        CVAE_list_multi.append(0)
 
         auc, val_acc, val_ap, precision, recall, HR = get_metrices(target_list, org_adj, re_adj_prior)
         auc_list_multi.append(auc)
@@ -350,6 +337,7 @@ for i in sample_list:
 
 set_to_one = True
 if single_link:
+    # org_adj.fill(0)
     false_count = len(pred_single_link)
     res = np.argwhere(org_adj == 0)
     np.random.shuffle(res)
@@ -369,7 +357,6 @@ if single_link:
             std_z_recog, m_z_recog, z_recog, re_adj_recog = run_network(features_kdd, adj_list_copy, inductive_pn,
                                                                         [], sampling_method,
                                                                         is_prior=False)
-            
             std_z_prior, m_z_prior, z_prior, re_adj_prior = run_network(features_kdd, org_adj, inductive_pn, target_list,sampling_method,
                                                                         is_prior=True)
 
