@@ -220,7 +220,7 @@ class DataCenter(object):
                 setattr(self, dataSet+'_train', train_indexs)
 
                 setattr(self, dataSet+'_feats', features)
-                setattr(self, dataSet+'_labels', labels)
+                # setattr(self, dataSet+'_labels', labels)
                 setattr(self, dataSet+'_adj_lists', adj)
                 
                 
