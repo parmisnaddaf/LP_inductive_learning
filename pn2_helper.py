@@ -59,7 +59,7 @@ def train_PNModel(dataCenter, features, args, device):
     
     
     original_adj_full= torch.FloatTensor(getattr(dataCenter, ds+'_adj_lists')).to(device)
-    node_label_full= torch.FloatTensor(getattr(dataCenter, ds+'_labels')).to(device)
+    # node_label_full= torch.FloatTensor(getattr(dataCenter, ds+'_labels')).to(device)
 
     
     # shuffling the data, and selecting a subset of it
