@@ -127,88 +127,88 @@ class DataCenter(object):
 
 
             if dataSet == 'ppi':
-                PPI_PATH = '/local-scratch/parmis/inductive_learning/inductive_learning/ppi'
-                PPI_URL = 'https://data.dgl.ai/dataset/ppi.zip'  # preprocessed PPI data from Deep Graph Library
-                PPI_NUM_INPUT_FEATURES = 50
-                PPI_NUM_CLASSES = 121
-                if not os.path.exists(PPI_PATH):  # download the first time this is ran
-                    os.makedirs(PPI_PATH)
+                # PPI_PATH = '/local-scratch/parmis/inductive_learning/inductive_learning/ppi'
+                # PPI_URL = 'https://data.dgl.ai/dataset/ppi.zip'  # preprocessed PPI data from Deep Graph Library
+                # PPI_NUM_INPUT_FEATURES = 50
+                # PPI_NUM_CLASSES = 121
+                # if not os.path.exists(PPI_PATH):  # download the first time this is ran
+                #     os.makedirs(PPI_PATH)
 
-                    # Step 1: Download the ppi.zip (contains the PPI dataset)
-                    zip_tmp_path = os.path.join(PPI_PATH, 'ppi.zip')
-                    download_url_to_file(PPI_URL, zip_tmp_path)
+                #     # Step 1: Download the ppi.zip (contains the PPI dataset)
+                #     zip_tmp_path = os.path.join(PPI_PATH, 'ppi.zip')
+                #     download_url_to_file(PPI_URL, zip_tmp_path)
 
-                    # Step 2: Unzip it
-                    with zipfile.ZipFile(zip_tmp_path) as zf:
-                        zf.extractall(path=PPI_PATH)
-                    print(f'Unzipping to: {PPI_PATH} finished.')
+                #     # Step 2: Unzip it
+                #     with zipfile.ZipFile(zip_tmp_path) as zf:
+                #         zf.extractall(path=PPI_PATH)
+                #     print(f'Unzipping to: {PPI_PATH} finished.')
 
-                    # Step3: Remove the temporary resource file
-                    os.remove(zip_tmp_path)
-                    print(f'Removing tmp file {zip_tmp_path}.')
+                #     # Step3: Remove the temporary resource file
+                #     os.remove(zip_tmp_path)
+                #     print(f'Removing tmp file {zip_tmp_path}.')
 
-                # Collect train/val/test graphs here
-                edge_index_list = []
-                node_features_list = []
-                node_labels_list = []
+                # # Collect train/val/test graphs here
+                # edge_index_list = []
+                # node_features_list = []
+                # node_labels_list = []
 
-                # Dynamically determine how many graphs we have per split (avoid using constants when possible)
-                num_graphs_per_split_cumulative = [0]
+                # # Dynamically determine how many graphs we have per split (avoid using constants when possible)
+                # num_graphs_per_split_cumulative = [0]
 
-                # Small optimization "trick" since we only need test in the playground.py
-                splits = ['train', 'valid', 'test']
+                # # Small optimization "trick" since we only need test in the playground.py
+                # splits = ['train', 'valid', 'test']
 
-                for split in splits:
-                    # PPI has 50 features per node, it's a combination of positional gene sets, motif gene sets,
-                    # and immunological signatures - you can treat it as a black box (I personally have a rough understanding)
-                    # shape = (NS, 50) - where NS is the number of (N)odes in the training/val/test (S)plit
-                    # Note: node features are already preprocessed
-                    node_features = np.load(os.path.join(PPI_PATH, f'{split}_feats.npy'))
+                # for split in splits:
+                #     # PPI has 50 features per node, it's a combination of positional gene sets, motif gene sets,
+                #     # and immunological signatures - you can treat it as a black box (I personally have a rough understanding)
+                #     # shape = (NS, 50) - where NS is the number of (N)odes in the training/val/test (S)plit
+                #     # Note: node features are already preprocessed
+                #     node_features = np.load(os.path.join(PPI_PATH, f'{split}_feats.npy'))
 
-                    # PPI has 121 labels and each node can have multiple labels associated (gene ontology stuff)
-                    # SHAPE = (NS, 121)
-                    node_labels = np.load(os.path.join(PPI_PATH, f'{split}_labels.npy'))
+                #     # PPI has 121 labels and each node can have multiple labels associated (gene ontology stuff)
+                #     # SHAPE = (NS, 121)
+                #     node_labels = np.load(os.path.join(PPI_PATH, f'{split}_labels.npy'))
 
-                    # Graph topology stored in a special nodes-links NetworkX format
-                    nodes_links_dict = json_read(os.path.join(PPI_PATH, f'{split}_graph.json'))
-                    # PPI contains undirected graphs with self edges - 20 train graphs, 2 validation graphs and 2 test graphs
-                    # The reason I use a NetworkX's directed graph is because we need to explicitly model both directions
-                    # because of the edge index and the way GAT implementation #3 works
-                    collection_of_graphs = nx.DiGraph(json_graph.node_link_graph(nodes_links_dict))
-                    # For each node in the above collection, ids specify to which graph the node belongs to
-                    graph_ids = np.load(os.path.join(PPI_PATH, F'{split}_graph_id.npy'))
-                    num_graphs_per_split_cumulative.append(num_graphs_per_split_cumulative[-1] + len(np.unique(graph_ids)))
+                #     # Graph topology stored in a special nodes-links NetworkX format
+                #     nodes_links_dict = json_read(os.path.join(PPI_PATH, f'{split}_graph.json'))
+                #     # PPI contains undirected graphs with self edges - 20 train graphs, 2 validation graphs and 2 test graphs
+                #     # The reason I use a NetworkX's directed graph is because we need to explicitly model both directions
+                #     # because of the edge index and the way GAT implementation #3 works
+                #     collection_of_graphs = nx.DiGraph(json_graph.node_link_graph(nodes_links_dict))
+                #     # For each node in the above collection, ids specify to which graph the node belongs to
+                #     graph_ids = np.load(os.path.join(PPI_PATH, F'{split}_graph_id.npy'))
+                #     num_graphs_per_split_cumulative.append(num_graphs_per_split_cumulative[-1] + len(np.unique(graph_ids)))
 
-                    # Split the collection of graphs into separate PPI graphs
-                    for graph_id in range(np.min(graph_ids), 15):
-                        mask = graph_ids == graph_id# find the nodes which belong to the current graph (identified via id)
-                        graph_node_ids = np.asarray(mask).nonzero()[0]
-                        graph = collection_of_graphs.subgraph(graph_node_ids)  # returns the induced subgraph over these nodes
-                        print(f'Loading {split} graph {graph_id} to CPU. '
-                              f'It has {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges.')
+                #     # Split the collection of graphs into separate PPI graphs
+                #     for graph_id in range(np.min(graph_ids), 15):
+                #         mask = graph_ids == graph_id# find the nodes which belong to the current graph (identified via id)
+                #         graph_node_ids = np.asarray(mask).nonzero()[0]
+                #         graph = collection_of_graphs.subgraph(graph_node_ids)  # returns the induced subgraph over these nodes
+                #         print(f'Loading {split} graph {graph_id} to CPU. '
+                #               f'It has {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges.')
 
-                        # shape = (2, E) - where E is the number of edges in the graph
-                        # Note: leaving the tensors on CPU I'll load them to GPU in the training loop on-the-fly as VRAM
-                        # is a scarcer resource than CPU's RAM and the whole PPI dataset can't fit during the training.
-                        edge_index = torch.tensor(list(graph.edges), dtype=torch.long).transpose(0, 1).contiguous()
-                        edge_index = edge_index - edge_index.min()  # bring the edges to [0, num_of_nodes] range
-                        edge_index_list.append(edge_index)
-                        # shape = (N, 50) - where N is the number of nodes in the graph
-                        node_features_list.append(torch.tensor(node_features[mask], dtype=torch.float))
-                        # shape = (N, 121), BCEWithLogitsLoss doesn't require long/int64 so saving some memory by using float32
-                        node_labels_list.append(torch.tensor(node_labels[mask], dtype=torch.float))
+                #         # shape = (2, E) - where E is the number of edges in the graph
+                #         # Note: leaving the tensors on CPU I'll load them to GPU in the training loop on-the-fly as VRAM
+                #         # is a scarcer resource than CPU's RAM and the whole PPI dataset can't fit during the training.
+                #         edge_index = torch.tensor(list(graph.edges), dtype=torch.long).transpose(0, 1).contiguous()
+                #         edge_index = edge_index - edge_index.min()  # bring the edges to [0, num_of_nodes] range
+                #         edge_index_list.append(edge_index)
+                #         # shape = (N, 50) - where N is the number of nodes in the graph
+                #         node_features_list.append(torch.tensor(node_features[mask], dtype=torch.float))
+                #         # shape = (N, 121), BCEWithLogitsLoss doesn't require long/int64 so saving some memory by using float32
+                #         node_labels_list.append(torch.tensor(node_labels[mask], dtype=torch.float))
 
-                adj = np.zeros((node_features_list[13].shape[0], node_features_list[13].shape[0]))
-                # for i in range(edge_index_list[13][0].shape[0]):
-                #     adj[edge_index_list[13][0][i].item()][edge_index_list[13][1][i].item()] = 1
-                adj[edge_index_list[13][0], edge_index_list[13][1]] = 1
+                # adj = np.zeros((node_features_list[13].shape[0], node_features_list[13].shape[0]))
+                # # for i in range(edge_index_list[13][0].shape[0]):
+                # #     adj[edge_index_list[13][0][i].item()][edge_index_list[13][1][i].item()] = 1
+                # adj[edge_index_list[13][0], edge_index_list[13][1]] = 1
 
-                features = node_features_list[13].numpy()
-                labels = node_labels_list[13].numpy()
+                # features = node_features_list[13].numpy()
+                # labels = node_labels_list[13].numpy()
                 
                 
-                adj = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/LP_inductive_learning/datasets/PPI/A.npy")
-                features = np.load("/localhome/pnaddaf/Desktop/parmis/inductive_learning/LP_inductive_learning/datasets/PPI/X.npy")
+                adj = np.load("./datasets/PPI/A.npy")
+                features = np.load("./datasets/PPI/X.npy")
 
 
                 test_indexs, val_indexs, train_indexs = self._split_data(features.shape[0])
