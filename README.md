@@ -1,1 +1,1 @@
-# LP_inductive_learning
+[![PDF](path/to/your/thumbnail.png)](README.pdf)
